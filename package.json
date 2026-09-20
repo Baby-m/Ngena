@@ -3,8 +3,8 @@
   "private": true,
   "packageManager": "pnpm@12.4.2",
   "scripts": {
-    "dev": "pnpm --parallel --filter ./apps/* dev",
-    "build": "pnpm --recursive --filter ./apps/* build"
+    "dev": "pnpm -r --parallel --filter api --filter web run dev",
+    "build": "pnpm -r --filter api --filter web run build"
   },
   "devDependencies": {
     "turbo": "^2.10.13"

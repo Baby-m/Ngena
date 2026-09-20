@@ -1,11 +1,12 @@
 ﻿{
   "name": "ngenaprime",
   "private": true,
+  "packageManager": "pnpm@12.4.2",
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build"
+    "dev": "pnpm --parallel --filter ./apps/* dev",
+    "build": "pnpm --recursive --filter ./apps/* build"
   },
   "devDependencies": {
-    "turbo": "^2.0.0"
+    "turbo": "^2.10.13"
   }
 }

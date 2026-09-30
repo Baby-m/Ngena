@@ -45,7 +45,7 @@ model Event {
   status      EventStatus @default(DRAFT)
 
   organizerId String
-  organizer   User   @relation(fields: [organizerId], references: [id])
+  organizer   User   @relation(fields: [organizerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

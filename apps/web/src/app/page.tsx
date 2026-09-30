@@ -298,6 +298,10 @@ export default function Home() {
             Criar conta
             <ArrowRight className="ml-2 size-4" />
           </Button>
+
+          <Link href="/events">
+            Eventos
+          </Link>
         </div>
       </section>
 

@@ -1,0 +1,21 @@
+$kind: http-request
+url: "{{apiUrl}}/api/events"
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"name\": \"Festival Ngena 2026\",\r
+
+    \  \"description\": \"Primeiro evento de teste da plataforma.\",\r
+
+    \  \"location\": \"Maputo\",\r
+
+    \  \"startsAt\": \"2026-12-20T18:00:00.000Z\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0kyo}}"
+order: 1790778615507

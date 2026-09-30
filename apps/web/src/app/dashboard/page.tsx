@@ -1,11 +1,14 @@
 "use client"
 
+import Link from "next/link"
+
 import {
   useEffect,
   useState,
 } from "react"
 import { useRouter } from "next/navigation"
 import {
+  CalendarPlus,
   LogOut,
   ShieldCheck,
   User,
@@ -168,6 +171,34 @@ export default function DashboardPage() {
               </Badge>
             </CardContent>
           </Card>
+
+          {(
+            user.role === "ORGANIZER" ||
+            user.role === "SUPER_ADMIN"
+            ) && (
+            <Card className="mt-6">
+                <CardHeader>
+                <CardTitle>
+                    Gestão de eventos
+                </CardTitle>
+
+                <CardDescription>
+                    Cria e administra os teus eventos.
+                </CardDescription>
+                </CardHeader>
+
+                <CardContent>
+                <Button
+                    render={
+                    <Link href="/organizer/events/new" />
+                    }
+                >
+                    <CalendarPlus className="mr-2 size-4" />
+                    Criar evento
+                </Button>
+                </CardContent>
+            </Card>
+            )}
         </div>
       </div>
     </main>

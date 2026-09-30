@@ -22,6 +22,34 @@ model User {
   password String
   role     UserRole @default(CUSTOMER)
 
+  events Event[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+model Event {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  location    String
+  startsAt    DateTime
+  endsAt      DateTime?
+  status      EventStatus @default(DRAFT)
+
+  organizerId String
+  organizer   User   @relation(fields: [organizerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizerId])
+  @@index([status])
 }

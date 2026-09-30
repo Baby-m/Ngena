@@ -1,9 +1,12 @@
 import {
   IsDateString,
+  IsEnum,
   IsOptional,
   IsString,
   MinLength,
 } from 'class-validator';
+
+import { EventStatus } from '../../../../generated/prisma/client.js';
 
 export class UpdateEventDto {
   @IsOptional()
@@ -27,4 +30,8 @@ export class UpdateEventDto {
   @IsOptional()
   @IsDateString()
   endsAt?: string;
+
+  @IsOptional()
+  @IsEnum(EventStatus)
+  status?: EventStatus;
 }

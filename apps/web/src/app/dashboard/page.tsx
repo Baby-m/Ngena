@@ -151,6 +151,14 @@ export default function DashboardPage() {
                 </p>
               </div>
             </CardContent>
+            <Button
+              variant="outline"
+              render={
+                <Link href="/tickets" />
+              }
+            >
+              Meus bilhetes
+            </Button>
           </Card>
 
           <Card>

@@ -5,9 +5,9 @@ body:
   type: json
   content: "{\r
 
-    \  \"email\": \"auth@ngena.local\",\r
+    \  \"email\": \"cliente@ngena.local\",\r
 
     \  \"password\": \"12345678\"\r
 
-    }"
+    }\r\n"
 order: 791278704328104

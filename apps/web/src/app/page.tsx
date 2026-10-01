@@ -105,10 +105,10 @@ export default function Home() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Button
               size="lg"
-              variant="outline"
-              render={<a href="#how-it-works" />}
+              render={<Link href="/events" />}
             >
-              Ver como funciona
+              Ver eventos
+              <ArrowRight className="ml-2 size-4" />
             </Button>
 
             <Button

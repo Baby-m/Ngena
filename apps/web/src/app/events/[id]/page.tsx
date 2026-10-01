@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   CalendarDays,
   MapPin,
+  Ticket,
   User,
 } from "lucide-react"
 import { notFound } from "next/navigation"
@@ -12,67 +13,103 @@ import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-
 import type { Event } from "@/types/event"
+import type { TicketType } from "@/types/ticket-type"
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:3001/api"
 
 async function getEvent(id: string): Promise<Event | null> {
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_URL ??
-    "http://localhost:3001/api"
-
-  const response = await fetch(
-    `${apiUrl}/events/${id}`,
-    {
+  try {
+    const response = await fetch(`${API_URL}/events/${id}`, {
       cache: "no-store",
-    },
-  )
+    })
 
-  if (response.status === 404) {
-    return null
+    if (response.status === 404) {
+      return null
+    }
+
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`)
+    }
+
+    return response.json()
+  } catch (error) {
+    console.error("Failed to load event:", error)
+    throw new Error("API_UNAVAILABLE")
   }
+}
 
-  if (!response.ok) {
-    throw new Error("Failed to load event")
+async function getTicketTypes(id: string): Promise<TicketType[]> {
+  try {
+    const response = await fetch(`${API_URL}/events/${id}/ticket-types`, {
+      cache: "no-store",
+    })
+
+    if (!response.ok) {
+      return []
+    }
+
+    return response.json()
+  } catch (error) {
+    console.error("Failed to load ticket types:", error)
+    return []
   }
-
-  return response.json()
 }
 
 type PageProps = {
-  params: Promise<{
-    id: string
-  }>
+  params: Promise<{ id: string }>
 }
 
-export default async function EventDetailsPage({
-  params,
-}: PageProps) {
+export default async function EventDetailsPage({ params }: PageProps) {
   const { id } = await params
 
-  const event = await getEvent(id)
+  let event: Event | null
+
+  try {
+    event = await getEvent(id)
+  } catch {
+    return (
+      <main className="min-h-screen bg-muted/30">
+        <div className="mx-auto max-w-5xl px-6 py-12">
+          <Button variant="ghost" render={<Link href="/events" />}>
+            <ArrowLeft className="mr-2 size-4" />
+            Voltar aos eventos
+          </Button>
+
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle>Não foi possível carregar o evento</CardTitle>
+              <CardDescription>
+                Confirma se o backend está a correr em http://127.0.0.1:3001.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </main>
+    )
+  }
 
   if (!event) {
     notFound()
   }
 
+  const ticketTypes = await getTicketTypes(id)
+
   return (
     <main className="min-h-screen bg-muted/30">
       <div className="mx-auto max-w-5xl px-6 py-12">
-        <Button
-          variant="ghost"
-          render={<Link href="/events" />}
-        >
+        <Button variant="ghost" render={<Link href="/events" />}>
           <ArrowLeft className="mr-2 size-4" />
           Voltar aos eventos
         </Button>
 
         <div className="mt-8">
-          <Badge variant="secondary">
-            {event.status}
-          </Badge>
+          <Badge variant="secondary">{event.status}</Badge>
 
           <h1 className="mt-4 text-4xl font-bold tracking-tight">
             {event.name}
@@ -87,36 +124,24 @@ export default async function EventDetailsPage({
 
         <Card className="mt-10">
           <CardHeader>
-            <CardTitle>
-              Informações do evento
-            </CardTitle>
+            <CardTitle>Informações do evento</CardTitle>
           </CardHeader>
 
           <CardContent className="grid gap-6 md:grid-cols-2">
             <div className="flex gap-3">
               <CalendarDays className="mt-1 size-5 text-muted-foreground" />
-
               <div>
-                <p className="font-medium">
-                  Início
-                </p>
-
+                <p className="font-medium">Início</p>
                 <p className="text-sm text-muted-foreground">
-                  {new Date(
-                    event.startsAt,
-                  ).toLocaleString()}
+                  {new Date(event.startsAt).toLocaleString("pt-MZ")}
                 </p>
               </div>
             </div>
 
             <div className="flex gap-3">
               <MapPin className="mt-1 size-5 text-muted-foreground" />
-
               <div>
-                <p className="font-medium">
-                  Local
-                </p>
-
+                <p className="font-medium">Local</p>
                 <p className="text-sm text-muted-foreground">
                   {event.location}
                 </p>
@@ -125,12 +150,8 @@ export default async function EventDetailsPage({
 
             <div className="flex gap-3">
               <User className="mt-1 size-5 text-muted-foreground" />
-
               <div>
-                <p className="font-medium">
-                  Organizador
-                </p>
-
+                <p className="font-medium">Organizador</p>
                 <p className="text-sm text-muted-foreground">
                   {event.organizer.name}
                 </p>
@@ -138,20 +159,53 @@ export default async function EventDetailsPage({
             </div>
 
             {event.endsAt && (
-              <div>
-                <p className="font-medium">
-                  Fim
-                </p>
-
-                <p className="text-sm text-muted-foreground">
-                  {new Date(
-                    event.endsAt,
-                  ).toLocaleString()}
-                </p>
+              <div className="flex gap-3">
+                <CalendarDays className="mt-1 size-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">Fim</p>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(event.endsAt).toLocaleString("pt-MZ")}
+                  </p>
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
+
+        <section className="mt-10">
+          <div className="flex items-center gap-2">
+            <Ticket className="size-5" />
+            <h2 className="text-2xl font-bold">Bilhetes</h2>
+          </div>
+
+          {ticketTypes.length === 0 ? (
+            <p className="mt-4 text-muted-foreground">
+              Ainda não existem tipos de bilhete disponíveis para este evento.
+            </p>
+          ) : (
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              {ticketTypes.map((ticketType) => (
+                <Card key={ticketType.id}>
+                  <CardHeader>
+                    <CardTitle>{ticketType.name}</CardTitle>
+                    <CardDescription>
+                      {ticketType.description || "Bilhete para este evento"}
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent>
+                    <p className="text-2xl font-bold">
+                      {Number(ticketType.price).toLocaleString("pt-MZ")} MZN
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {ticketType.quantity} disponíveis
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </main>
   )

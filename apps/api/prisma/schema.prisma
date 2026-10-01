@@ -30,6 +30,8 @@ model User {
   tickets Ticket[]
 
   orders Order[]
+
+  checkIns CheckIn[]
 }
 
 enum EventStatus {
@@ -119,10 +121,26 @@ model Ticket {
   customerId String
   customer   User   @relation(fields: [customerId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  checkIns  CheckIn[]
 
   @@index([orderId])
   @@index([ticketTypeId])
   @@index([customerId])
+}
+
+model CheckIn {
+  id String @id @default(uuid())
+
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id])
+
+  validatedById String
+  validatedBy   User   @relation(fields: [validatedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([validatedById])
 }

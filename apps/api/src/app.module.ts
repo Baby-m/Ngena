@@ -7,11 +7,13 @@ import { TicketTypesModule } from './modules/ticket-types/ticket-types.module.js
 import { OrdersModule } from './modules/orders/orders.module.js';
 import { TicketsModule } from './modules/tickets/tickets.module.js';
 import { CheckInsModule } from './modules/checkins/checkins.module.js';
+import { GatesModule } from './modules/gates/gates.module.js';
 
 @Module({
   imports: [
     DatabaseModule,
     UsersModule,
+    GatesModule,
     CheckInsModule,
     TicketTypesModule,
     AuthModule,

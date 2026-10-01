@@ -32,6 +32,8 @@ model User {
   orders Order[]
 
   checkIns CheckIn[]
+
+  gateAssignments GateStaff[]
 }
 
 enum EventStatus {
@@ -57,6 +59,8 @@ model Event {
   updatedAt DateTime @updatedAt
 
   ticketTypes TicketType[]
+
+  gates Gate[]
 
   @@index([organizerId])
   @@index([status])
@@ -139,8 +143,43 @@ model CheckIn {
   validatedById String
   validatedBy   User   @relation(fields: [validatedById], references: [id])
 
+  gateId String?
+  gate   Gate?   @relation(fields: [gateId], references: [id])
+
   createdAt DateTime @default(now())
 
   @@index([ticketId])
   @@index([validatedById])
+  @@index([gateId])
+}
+
+model Gate {
+  id   String @id @default(uuid())
+  name String
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  staff    GateStaff[]
+  checkIns CheckIn[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
+}
+
+model GateStaff {
+  id String @id @default(uuid())
+
+  gateId String
+  gate   Gate   @relation(fields: [gateId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([gateId, userId])
+  @@index([userId])
 }

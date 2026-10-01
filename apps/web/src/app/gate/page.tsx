@@ -52,6 +52,21 @@ type ValidationResponse = {
   }
 }
 
+type MyGate = {
+  id: string
+
+  gate: {
+    id: string
+    name: string
+
+    event: {
+      id: string
+      name: string
+      location: string
+    }
+  }
+}
+
 export default function GatePage() {
   const router = useRouter()
 
@@ -63,6 +78,12 @@ export default function GatePage() {
     useState<ValidationResponse | null>(
       null,
     )
+
+  const [gates, setGates] =
+    useState<MyGate[]>([])
+
+  const [gateId, setGateId] =
+    useState("")
 
   const [error, setError] =
     useState("")
@@ -83,6 +104,23 @@ export default function GatePage() {
     ) {
       router.replace("/dashboard")
     }
+
+    apiRequest<MyGate[]>(
+      "/gates/mine",
+      {
+        token,
+      },
+    )
+      .then((result) => {
+        setGates(result)
+
+        if (result.length > 0) {
+          setGateId(
+            result[0].gate.id,
+          )
+        }
+      })
+      .catch(console.error)
   }, [router])
 
   async function handleSubmit(
@@ -110,6 +148,7 @@ export default function GatePage() {
             token,
             body: JSON.stringify({
               code: code.trim(),
+              gateId,
             }),
           },
         )
@@ -159,6 +198,34 @@ export default function GatePage() {
               onSubmit={handleSubmit}
               className="space-y-5"
             >
+              <div className="space-y-2">
+                <Label htmlFor="gate">
+                  Gate
+                </Label>
+
+                <select
+                  id="gate"
+                  value={gateId}
+                  onChange={(event) =>
+                    setGateId(
+                      event.target.value,
+                    )
+                  }
+                  className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                  required
+                >
+                  {gates.map((assignment) => (
+                    <option
+                      key={assignment.gate.id}
+                      value={assignment.gate.id}
+                    >
+                      {assignment.gate.event.name}
+                      {" — "}
+                      {assignment.gate.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="code">
                   Código do bilhete

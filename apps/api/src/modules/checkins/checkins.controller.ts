@@ -16,6 +16,7 @@ import { ValidateTicketDto } from './dto/validate-ticket.dto.js';
 
 type AuthUser = {
   id: string;
+  role: UserRole;
 };
 
 @Controller('checkins')
@@ -41,6 +42,7 @@ export class CheckInsController {
   ) {
     return this.checkInsService.validate(
       user.id,
+      user.role,
       body,
     );
   }

@@ -1,0 +1,22 @@
+$kind: http-request
+description: ""
+url: "{{apiUrl}}/api/events/3fc7515a-59df-447b-abd3-aabd3108c52c/ticket-types"
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"name\": \"VIP\",\r
+
+    \  \"description\": \"Acesso VIP\",\r
+
+    \  \"price\": 5000,\r
+
+    \  \"quantity\": 100\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0kyo}}"
+order: 1790782413347

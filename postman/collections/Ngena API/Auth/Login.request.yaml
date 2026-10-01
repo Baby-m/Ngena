@@ -1,0 +1,13 @@
+$kind: http-request
+url: "{{apiUrl}}/api/auth/login"
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"email\": \"gatestaff@ngena.local\",\r
+
+    \  \"password\": \"12345678\"\r
+
+    }\r\n"
+order: 791278704328104

@@ -22,6 +22,7 @@ import {
 import { apiRequest } from "@/lib/api"
 import { getToken } from "@/lib/auth"
 import type { Ticket } from "@/types/ticket"
+import { QRCodeSVG } from "qrcode.react"
 
 export default function TicketPage() {
   const params = useParams<{
@@ -114,9 +115,15 @@ export default function TicketPage() {
 
           <CardContent className="space-y-6">
             <div className="rounded-xl border bg-background p-6 text-center">
-              <TicketIcon className="mx-auto size-8" />
+              <div className="flex justify-center">
+                <QRCodeSVG
+                  value={ticket.code}
+                  size={220}
+                  level="M"
+                />
+              </div>
 
-              <p className="mt-4 text-sm text-muted-foreground">
+              <p className="mt-6 text-sm text-muted-foreground">
                 Código do bilhete
               </p>
 

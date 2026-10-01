@@ -69,6 +69,25 @@ export class EventsService {
     return event;
   }
 
+  findMine(userId: string) {
+    return this.prisma.event.findMany({
+      where: {
+        organizerId: userId,
+      },
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
   async update(
     id: string,
     currentUser: CurrentUser,

@@ -176,28 +176,25 @@ export default function DashboardPage() {
             user.role === "ORGANIZER" ||
             user.role === "SUPER_ADMIN"
             ) && (
-            <Card className="mt-6">
-                <CardHeader>
-                <CardTitle>
-                    Gestão de eventos
-                </CardTitle>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                render={
+                  <Link href="/organizer/events" />
+                }
+              >
+                Gerir eventos
+              </Button>
 
-                <CardDescription>
-                    Cria e administra os teus eventos.
-                </CardDescription>
-                </CardHeader>
-
-                <CardContent>
-                <Button
-                    render={
-                    <Link href="/organizer/events/new" />
-                    }
-                >
-                    <CalendarPlus className="mr-2 size-4" />
-                    Criar evento
-                </Button>
-                </CardContent>
-            </Card>
+              <Button
+                variant="outline"
+                render={
+                  <Link href="/organizer/events/new" />
+                }
+              >
+                <CalendarPlus className="mr-2 size-4" />
+                Criar evento
+              </Button>
+            </div>
             )}
         </div>
       </div>

@@ -50,6 +50,24 @@ model Event {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  ticketTypes TicketType[]
+
   @@index([organizerId])
   @@index([status])
+}
+
+model TicketType {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  price       Decimal @db.Decimal(12, 2)
+  quantity    Int
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
 }

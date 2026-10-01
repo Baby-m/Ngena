@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card"
 import type { Event } from "@/types/event"
 import type { TicketType } from "@/types/ticket-type"
+import { EventTicketTypes } from "@/components/event-ticket-types"
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:3001/api"
@@ -172,40 +173,9 @@ export default async function EventDetailsPage({ params }: PageProps) {
           </CardContent>
         </Card>
 
-        <section className="mt-10">
-          <div className="flex items-center gap-2">
-            <Ticket className="size-5" />
-            <h2 className="text-2xl font-bold">Bilhetes</h2>
-          </div>
-
-          {ticketTypes.length === 0 ? (
-            <p className="mt-4 text-muted-foreground">
-              Ainda não existem tipos de bilhete disponíveis para este evento.
-            </p>
-          ) : (
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {ticketTypes.map((ticketType) => (
-                <Card key={ticketType.id}>
-                  <CardHeader>
-                    <CardTitle>{ticketType.name}</CardTitle>
-                    <CardDescription>
-                      {ticketType.description || "Bilhete para este evento"}
-                    </CardDescription>
-                  </CardHeader>
-
-                  <CardContent>
-                    <p className="text-2xl font-bold">
-                      {Number(ticketType.price).toLocaleString("pt-MZ")} MZN
-                    </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {ticketType.quantity} disponíveis
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </section>
+        <EventTicketTypes
+          ticketTypes={ticketTypes}
+        />
       </div>
     </main>
   )

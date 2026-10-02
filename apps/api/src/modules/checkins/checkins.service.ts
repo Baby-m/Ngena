@@ -10,140 +10,227 @@ import {
   UserRole,
 } from '../../../generated/prisma/client.js';
 
-import { PrismaService } from '../../database/prisma.service.js';
-import { ValidateTicketDto } from './dto/validate-ticket.dto.js';
+import {
+  PrismaService,
+} from '../../database/prisma.service.js';
 
+import {
+  ValidateTicketDto,
+} from './dto/validate-ticket.dto.js';
 
 @Injectable()
 export class CheckInsService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma:
+      PrismaService,
   ) {}
 
-  async validate(
-  userId: string,
-  userRole: UserRole,
-  data: ValidateTicketDto,
-) {
-  const ticket =
-    await this.prisma.ticket.findUnique({
+  findMine(userId: string) {
+    return this.prisma.checkIn.findMany({
       where: {
-        code: data.code
-          .trim()
-          .toUpperCase(),
+        validatedById: userId,
       },
+
       include: {
-        ticketType: {
-          include: {
-            event: true,
+        gate: {
+          select: {
+            id: true,
+            name: true,
+
+            event: {
+              select: {
+                id: true,
+                name: true,
+                location: true,
+              },
+            },
+          },
+        },
+
+        ticket: {
+          select: {
+            id: true,
+            code: true,
+            status: true,
+
+            ticketType: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
-    });
 
-  if (!ticket) {
-    throw new NotFoundException(
-      'Ticket not found',
-    );
-  }
-
-  const gate =
-    await this.prisma.gate.findUnique({
-      where: {
-        id: data.gateId,
+      orderBy: {
+        createdAt: 'desc',
       },
     });
-
-  if (!gate) {
-    throw new NotFoundException(
-      'Gate not found',
-    );
   }
 
-  if (
-    gate.eventId !==
-    ticket.ticketType.event.id
+  async validate(
+    userId: string,
+    userRole: UserRole,
+    data: ValidateTicketDto,
   ) {
-    throw new BadRequestException(
-      'This ticket does not belong to this gate event',
-    );
-  }
+    const code =
+      data.code
+        .trim()
+        .toUpperCase();
 
-  if (
-    userRole !== UserRole.SUPER_ADMIN
-  ) {
-    const assignment =
-      await this.prisma.gateStaff.findUnique({
+    const ticket =
+      await this.prisma.ticket.findUnique({
         where: {
-          gateId_userId: {
-            gateId: gate.id,
-            userId,
+          code,
+        },
+
+        include: {
+          ticketType: {
+            include: {
+              event: true,
+            },
           },
         },
       });
 
-    if (!assignment) {
-      throw new ForbiddenException(
-        'You are not assigned to this gate',
+    if (!ticket) {
+      throw new NotFoundException(
+        'Ticket not found',
       );
     }
-  }
 
-  if (
-    ticket.status ===
-    TicketStatus.USED
-  ) {
-    throw new BadRequestException(
-      'Ticket already used',
-    );
-  }
+    const gate =
+      await this.prisma.gate.findUnique({
+        where: {
+          id: data.gateId,
+        },
+      });
 
-  if (
-    ticket.status ===
-    TicketStatus.CANCELLED
-  ) {
-    throw new BadRequestException(
-      'Ticket is cancelled',
-    );
-  }
+    if (!gate) {
+      throw new NotFoundException(
+        'Gate not found',
+      );
+    }
 
-  return this.prisma.$transaction(
-    async (tx) => {
-      const updatedTicket =
-        await tx.ticket.update({
+    if (
+      gate.eventId !==
+      ticket.ticketType.event.id
+    ) {
+      throw new BadRequestException(
+        'This ticket does not belong to this gate event',
+      );
+    }
+
+    if (
+      userRole !==
+      UserRole.SUPER_ADMIN
+    ) {
+      const assignment =
+        await this.prisma.gateStaff.findUnique({
           where: {
-            id: ticket.id,
-          },
-          data: {
-            status:
-              TicketStatus.USED,
-          },
-        });
-
-      const checkIn =
-        await tx.checkIn.create({
-          data: {
-            ticketId: ticket.id,
-            validatedById: userId,
-            gateId: gate.id,
+            gateId_userId: {
+              gateId:
+                gate.id,
+              userId,
+            },
           },
         });
 
-      return {
-        success: true,
-        message: 'Entry authorized',
-        gate: {
-          id: gate.id,
-          name: gate.name,
-        },
-        ticket: {
-          ...updatedTicket,
-          ticketType:
-            ticket.ticketType,
-        },
-        checkIn,
-      };
-    },
-  );
-}
+      if (!assignment) {
+        throw new ForbiddenException(
+          'You are not assigned to this gate',
+        );
+      }
+    }
+
+    if (
+      ticket.status ===
+      TicketStatus.USED
+    ) {
+      throw new BadRequestException(
+        'Ticket already used',
+      );
+    }
+
+    if (
+      ticket.status ===
+      TicketStatus.CANCELLED
+    ) {
+      throw new BadRequestException(
+        'Ticket is cancelled',
+      );
+    }
+
+    return this.prisma.$transaction(
+      async (tx) => {
+        /*
+         * Este updateMany também funciona como
+         * proteção adicional contra duas validações
+         * concorrentes do mesmo ticket.
+         */
+        const update =
+          await tx.ticket.updateMany({
+            where: {
+              id: ticket.id,
+              status:
+                TicketStatus.VALID,
+            },
+
+            data: {
+              status:
+                TicketStatus.USED,
+            },
+          });
+
+        if (update.count !== 1) {
+          throw new BadRequestException(
+            'Ticket already used or unavailable',
+          );
+        }
+
+        const checkIn =
+          await tx.checkIn.create({
+            data: {
+              ticketId:
+                ticket.id,
+
+              validatedById:
+                userId,
+
+              gateId:
+                gate.id,
+            },
+          });
+
+        const updatedTicket =
+          await tx.ticket.findUnique({
+            where: {
+              id: ticket.id,
+            },
+          });
+
+        return {
+          success: true,
+
+          message:
+            'Entry authorized',
+
+          gate: {
+            id: gate.id,
+            name: gate.name,
+          },
+
+          ticket: {
+            ...updatedTicket,
+
+            ticketType:
+              ticket.ticketType,
+          },
+
+          checkIn,
+        };
+      },
+    );
+  }
 }

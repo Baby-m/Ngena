@@ -8,7 +8,9 @@ import { OrdersModule } from './modules/orders/orders.module.js';
 import { TicketsModule } from './modules/tickets/tickets.module.js';
 import { CheckInsModule } from './modules/checkins/checkins.module.js';
 import { GatesModule } from './modules/gates/gates.module.js';
-
+import {
+  DashboardModule,
+} from './modules/dashboard/dashboard.module.js';
 @Module({
   imports: [
     DatabaseModule,
@@ -20,6 +22,7 @@ import { GatesModule } from './modules/gates/gates.module.js';
     EventsModule,
     OrdersModule,
     TicketsModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}

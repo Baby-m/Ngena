@@ -1,24 +1,24 @@
 "use client"
 
 import {
-  FormEvent,
   useEffect,
+  useMemo,
   useState,
 } from "react"
 
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 import {
-  CheckCircle2,
+  useRouter,
+} from "next/navigation"
+
+import {
+  DoorOpen,
+  History,
   Loader2,
+  MapPin,
   ScanLine,
-  XCircle,
 } from "lucide-react"
-
-import {
-  Alert,
-  AlertDescription,
-} from "@/components/ui/alert"
 
 import {
   Badge,
@@ -37,14 +37,6 @@ import {
 } from "@/components/ui/card"
 
 import {
-  Input,
-} from "@/components/ui/input"
-
-import {
-  Label,
-} from "@/components/ui/label"
-
-import {
   apiRequest,
 } from "@/lib/api"
 
@@ -57,38 +49,7 @@ import type {
   MyGateAssignment,
 } from "@/types/gate"
 
-type ValidationResponse = {
-  success: boolean
-  message: string
-
-  gate: {
-    id: string
-    name: string
-  }
-
-  ticket: {
-    id: string
-    code: string
-    status: string
-
-    ticketType: {
-      name: string
-
-      event: {
-        id: string
-        name: string
-        location: string
-      }
-    }
-  }
-
-  checkIn: {
-    id: string
-    createdAt: string
-  }
-}
-
-export default function GatePage() {
+export default function GateDashboardPage() {
   const router = useRouter()
 
   const [
@@ -96,43 +57,39 @@ export default function GatePage() {
     setAssignments,
   ] = useState<MyGateAssignment[]>([])
 
-  const [gateId, setGateId] =
-    useState("")
-
-  const [code, setCode] =
-    useState("")
-
-  const [loading, setLoading] =
-    useState(false)
-
   const [
-    loadingGates,
-    setLoadingGates,
+    loading,
+    setLoading,
   ] = useState(true)
 
   const [
-    success,
-    setSuccess,
-  ] = useState<ValidationResponse | null>(
-    null,
-  )
+    error,
+    setError,
+  ] = useState("")
 
-  const [error, setError] =
-    useState("")
+  const user =
+    useMemo(
+      () => getStoredUser(),
+      [],
+    )
 
   useEffect(() => {
     const token = getToken()
-    const user = getStoredUser()
+    const currentUser =
+      getStoredUser()
 
-    if (!token || !user) {
+    if (
+      !token ||
+      !currentUser
+    ) {
       router.replace("/login")
       return
     }
 
     if (
-      user.role !== "GATE_MANAGER" &&
-      user.role !== "GATE_STAFF" &&
-      user.role !== "SUPER_ADMIN"
+      currentUser.role !== "GATE_STAFF" &&
+      currentUser.role !== "GATE_MANAGER" &&
+      currentUser.role !== "SUPER_ADMIN"
     ) {
       router.replace("/dashboard")
       return
@@ -146,13 +103,6 @@ export default function GatePage() {
     )
       .then((result) => {
         setAssignments(result)
-
-        if (result.length > 0) {
-          setGateId(
-            result[0].gate.id,
-          )
-        }
-
         setError("")
       })
       .catch((error) => {
@@ -168,77 +118,16 @@ export default function GatePage() {
         )
       })
       .finally(() => {
-        setLoadingGates(false)
+        setLoading(false)
       })
   }, [router])
 
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault()
-
-    const token = getToken()
-
-    if (!token) {
-      router.replace("/login")
-      return
-    }
-
-    if (!gateId) {
-      setError(
-        "Seleciona um gate antes de validar o bilhete.",
-      )
-      return
-    }
-
-    const normalizedCode =
-      code.trim().toUpperCase()
-
-    if (!normalizedCode) {
-      setError(
-        "Introduz o código do bilhete.",
-      )
-      return
-    }
-
-    setLoading(true)
-    setError("")
-    setSuccess(null)
-
-    try {
-      const result =
-        await apiRequest<ValidationResponse>(
-          "/checkins/validate",
-          {
-            method: "POST",
-            token,
-
-            body: JSON.stringify({
-              code: normalizedCode,
-              gateId,
-            }),
-          },
-        )
-
-      setSuccess(result)
-      setCode("")
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível validar o bilhete",
-      )
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (loadingGates) {
+  if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-muted/30">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Loader2 className="size-5 animate-spin" />
-          A carregar gates...
+          A carregar dashboard...
         </div>
       </main>
     )
@@ -246,193 +135,155 @@ export default function GatePage() {
 
   return (
     <main className="min-h-screen bg-muted/30">
-      <div className="mx-auto max-w-xl px-6 py-12">
-        <Badge variant="secondary">
-          FlowPass Gate
-        </Badge>
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Badge variant="secondary">
+              FlowPass Gate
+            </Badge>
 
-        <h1 className="mt-3 text-3xl font-bold">
-          Validar entrada
-        </h1>
+            <h1 className="mt-3 text-3xl font-bold tracking-tight">
+              Dashboard
+            </h1>
 
-        <p className="mt-2 text-muted-foreground">
-          Seleciona o gate e valida o código do bilhete.
-        </p>
+            <p className="mt-2 text-muted-foreground">
+              Olá
+              {user?.name
+                ? `, ${user.name}`
+                : ""}
+              . Gere os teus pontos de acesso e validações.
+            </p>
+          </div>
 
-        {assignments.length === 0 ? (
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>
-                Sem gates atribuídos
-              </CardTitle>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              render={
+                <Link href="/gate/history" />
+              }
+            >
+              <History className="mr-2 size-4" />
+              Histórico
+            </Button>
 
-              <CardDescription>
-                Ainda não foste atribuído a nenhum gate.
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Pede ao organizer ou gate manager para te atribuir a um gate antes de iniciar validações.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ScanLine className="size-5" />
-                Check-in
-              </CardTitle>
-
-              <CardDescription>
-                Uma validação bem-sucedida marca o bilhete como utilizado.
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              <form
-                onSubmit={handleSubmit}
-                className="space-y-5"
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="gate">
-                    Gate
-                  </Label>
-
-                  <select
-                    id="gate"
-                    value={gateId}
-                    onChange={(event) => {
-                      setGateId(
-                        event.target.value,
-                      )
-
-                      setSuccess(null)
-                      setError("")
-                    }}
-                    className="flex h-9 w-full rounded-md border bg-background px-3 text-sm outline-none"
-                    required
-                  >
-                    {assignments.map(
-                      (assignment) => (
-                        <option
-                          key={
-                            assignment.id
-                          }
-                          value={
-                            assignment.gate.id
-                          }
-                        >
-                          {
-                            assignment.gate
-                              .event.name
-                          }
-                          {" — "}
-                          {
-                            assignment.gate
-                              .name
-                          }
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="code">
-                    Código do bilhete
-                  </Label>
-
-                  <Input
-                    id="code"
-                    value={code}
-                    onChange={(event) =>
-                      setCode(
-                        event.target.value,
-                      )
-                    }
-                    placeholder="NGENA-7F4D92A1"
-                    autoComplete="off"
-                    required
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <ScanLine className="mr-2 size-4" />
-                  )}
-
-                  Validar entrada
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        {success && (
-          <Alert className="mt-6">
-            <CheckCircle2 className="size-4" />
-
-            <AlertDescription>
-              <p className="font-semibold">
-                Entrada autorizada
-              </p>
-
-              <div className="mt-3 space-y-1 text-sm">
-                <p>
-                  Evento:{" "}
-                  <strong>
-                    {
-                      success.ticket
-                        .ticketType.event.name
-                    }
-                  </strong>
-                </p>
-
-                <p>
-                  Bilhete:{" "}
-                  <strong>
-                    {
-                      success.ticket
-                        .ticketType.name
-                    }
-                  </strong>
-                </p>
-
-                <p>
-                  Gate:{" "}
-                  <strong>
-                    {success.gate.name}
-                  </strong>
-                </p>
-
-                <p className="font-mono">
-                  {success.ticket.code}
-                </p>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
+            <Button
+              render={
+                <Link href="/gate/checkin" />
+              }
+            >
+              <ScanLine className="mr-2 size-4" />
+              Validar bilhete
+            </Button>
+          </div>
+        </div>
 
         {error && (
-          <Alert
-            variant="destructive"
-            className="mt-6"
-          >
-            <XCircle className="size-4" />
-
-            <AlertDescription>
-              {error}
-            </AlertDescription>
-          </Alert>
+          <p className="mt-8 text-sm text-destructive">
+            {error}
+          </p>
         )}
+
+        <section className="mt-10">
+          <Card>
+            <CardHeader>
+              <CardDescription>
+                Gates atribuídos
+              </CardDescription>
+
+              <CardTitle className="text-4xl">
+                {assignments.length}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+        </section>
+
+        <section className="mt-10">
+          <div>
+            <h2 className="text-xl font-semibold">
+              Meus gates
+            </h2>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              Eventos e pontos de entrada aos quais estás atribuído.
+            </p>
+          </div>
+
+          {assignments.length === 0 ? (
+            <Card className="mt-6">
+              <CardContent className="flex flex-col items-center py-12 text-center">
+                <DoorOpen className="size-10 text-muted-foreground" />
+
+                <p className="mt-4 font-medium">
+                  Nenhum gate atribuído
+                </p>
+
+                <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                  Um organizer precisa atribuir-te a um gate antes de poderes validar entradas.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
+              {assignments.map(
+                (assignment) => (
+                  <Card
+                    key={
+                      assignment.id
+                    }
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            <DoorOpen className="size-5" />
+                            {
+                              assignment.gate
+                                .name
+                            }
+                          </CardTitle>
+
+                          <CardDescription className="mt-2">
+                            {
+                              assignment.gate
+                                .event.name
+                            }
+                          </CardDescription>
+                        </div>
+
+                        <Badge variant="outline">
+                          Ativo
+                        </Badge>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="size-4" />
+
+                        {
+                          assignment.gate
+                            .event.location
+                        }
+                      </div>
+
+                      <Button
+                        className="mt-5 w-full"
+                        render={
+                          <Link
+                            href={`/gate/checkin?gateId=${assignment.gate.id}`}
+                          />
+                        }
+                      >
+                        <ScanLine className="mr-2 size-4" />
+                        Iniciar validação
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ),
+              )}
+            </div>
+          )}
+        </section>
       </div>
     </main>
   )

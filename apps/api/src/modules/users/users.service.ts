@@ -1,27 +1,42 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+
 import bcrypt from 'bcryptjs';
 
 import {
   UserRole,
 } from '../../../generated/prisma/client.js';
 
-import { PrismaService } from '../../database/prisma.service.js';
-import { CreateUserDto } from './dto/create-user.dto.js';
+import {
+  PrismaService,
+} from '../../database/prisma.service.js';
+
+import {
+  CreateUserDto,
+} from './dto/create-user.dto.js';
+
+import {
+  UpdateUserRoleDto,
+} from './dto/update-user-role.dto.js';
 
 @Injectable()
 export class UsersService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma:
+      PrismaService,
   ) {}
 
-  async create(data: CreateUserDto) {
-    const email = data.email
-      .toLowerCase()
-      .trim();
+  async create(
+    data: CreateUserDto,
+  ) {
+    const email =
+      data.email
+        .toLowerCase()
+        .trim();
 
     const existingUser =
       await this.prisma.user.findUnique({
@@ -44,9 +59,14 @@ export class UsersService {
 
     return this.prisma.user.create({
       data: {
-        name: data.name.trim(),
+        name:
+          data.name.trim(),
+
         email,
-        password: passwordHash,
+
+        password:
+          passwordHash,
+
         role:
           data.role ??
           UserRole.CUSTOMER,
@@ -80,7 +100,9 @@ export class UsersService {
     });
   }
 
-  async findById(id: string) {
+  async findById(
+    id: string,
+  ) {
     const user =
       await this.prisma.user.findUnique({
         where: {
@@ -126,6 +148,61 @@ export class UsersService {
 
       orderBy: {
         name: 'asc',
+      },
+    });
+  }
+
+  async updateRole(
+    id: string,
+    data: UpdateUserRoleDto,
+    currentUserId: string,
+  ) {
+    const user =
+      await this.prisma.user.findUnique({
+        where: {
+          id,
+        },
+
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      });
+
+    if (!user) {
+      throw new NotFoundException(
+        'User not found',
+      );
+    }
+
+    if (
+      user.id === currentUserId &&
+      data.role !==
+        UserRole.SUPER_ADMIN
+    ) {
+      throw new BadRequestException(
+        'You cannot remove your own SUPER_ADMIN role',
+      );
+    }
+
+    return this.prisma.user.update({
+      where: {
+        id,
+      },
+
+      data: {
+        role: data.role,
+      },
+
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
   }

@@ -1,15 +1,31 @@
 "use client"
 
 import {
+  useRouter,
+} from "next/navigation"
+
+import {
   useState,
 } from "react"
+
 import {
   Loader2,
   Ticket,
 } from "lucide-react"
-import { useRouter } from "next/navigation"
 
-import { Button } from "@/components/ui/button"
+import {
+  Alert,
+  AlertDescription,
+} from "@/components/ui/alert"
+
+import {
+  Badge,
+} from "@/components/ui/badge"
+
+import {
+  Button,
+} from "@/components/ui/button"
+
 import {
   Card,
   CardContent,
@@ -18,24 +34,24 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-import { apiRequest } from "@/lib/api"
-import { getToken } from "@/lib/auth"
+import {
+  apiRequest,
+} from "@/lib/api"
 
-import type { TicketType } from "@/types/ticket-type"
+import {
+  getToken,
+} from "@/lib/auth"
+
+import type {
+  Order,
+} from "@/types/order"
+
+import type {
+  TicketType,
+} from "@/types/ticket-type"
 
 type Props = {
   ticketTypes: TicketType[]
-}
-
-type CreateOrderResponse = {
-  order: {
-    id: string
-  }
-
-  ticket: {
-    id: string
-    code: string
-  }
 }
 
 export function EventTicketTypes({
@@ -43,13 +59,19 @@ export function EventTicketTypes({
 }: Props) {
   const router = useRouter()
 
-  const [loadingId, setLoadingId] =
-    useState<string | null>(null)
+  const [
+    buyingTicketTypeId,
+    setBuyingTicketTypeId,
+  ] = useState<string | null>(
+    null,
+  )
 
-  const [error, setError] =
-    useState("")
+  const [
+    error,
+    setError,
+  ] = useState("")
 
-  async function buyTicket(
+  async function getTicket(
     ticketTypeId: string,
   ) {
     const token = getToken()
@@ -59,24 +81,37 @@ export function EventTicketTypes({
       return
     }
 
-    setLoadingId(ticketTypeId)
+    setBuyingTicketTypeId(
+      ticketTypeId,
+    )
+
     setError("")
 
     try {
-      const result =
-        await apiRequest<CreateOrderResponse>(
+      const order =
+        await apiRequest<Order>(
           "/orders",
           {
             method: "POST",
             token,
+
             body: JSON.stringify({
               ticketTypeId,
             }),
           },
         )
 
+      const ticket =
+        order.tickets?.[0]
+
+      if (!ticket) {
+        throw new Error(
+          "O bilhete não foi criado.",
+        )
+      }
+
       router.push(
-        `/tickets/${result.ticket.id}`,
+        `/customer/tickets/${ticket.id}`,
       )
     } catch (error) {
       setError(
@@ -85,87 +120,133 @@ export function EventTicketTypes({
           : "Não foi possível obter o bilhete",
       )
     } finally {
-      setLoadingId(null)
+      setBuyingTicketTypeId(
+        null,
+      )
     }
   }
 
   return (
     <section className="mt-10">
-      <div className="flex items-center gap-2">
-        <Ticket className="size-5" />
-
-        <h2 className="text-2xl font-bold">
+      <div>
+        <h2 className="text-2xl font-semibold">
           Bilhetes
         </h2>
+
+        <p className="mt-2 text-muted-foreground">
+          Escolhe o tipo de bilhete para este evento.
+        </p>
       </div>
 
       {error && (
-        <p className="mt-4 text-sm text-destructive">
-          {error}
-        </p>
+        <Alert
+          variant="destructive"
+          className="mt-6"
+        >
+          <AlertDescription>
+            {error}
+          </AlertDescription>
+        </Alert>
       )}
 
       {ticketTypes.length === 0 ? (
-        <p className="mt-4 text-muted-foreground">
-          Ainda não existem bilhetes disponíveis.
-        </p>
+        <Card className="mt-6">
+          <CardContent className="py-10 text-center text-muted-foreground">
+            Ainda não existem bilhetes disponíveis para este evento.
+          </CardContent>
+        </Card>
       ) : (
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {ticketTypes.map(
-            (ticketType) => (
-              <Card key={ticketType.id}>
-                <CardHeader>
-                  <CardTitle>
-                    {ticketType.name}
-                  </CardTitle>
+            (ticketType) => {
+              const soldOut =
+                ticketType.quantity <= 0
 
-                  <CardDescription>
-                    {ticketType.description ||
-                      "Bilhete para este evento"}
-                  </CardDescription>
-                </CardHeader>
+              const buying =
+                buyingTicketTypeId ===
+                ticketType.id
 
-                <CardContent>
-                  <p className="text-2xl font-bold">
-                    {Number(
-                      ticketType.price,
-                    ).toLocaleString(
-                      "pt-MZ",
-                    )}{" "}
-                    MZN
-                  </p>
+              return (
+                <Card
+                  key={
+                    ticketType.id
+                  }
+                >
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <CardTitle>
+                          {
+                            ticketType.name
+                          }
+                        </CardTitle>
 
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {ticketType.quantity} disponíveis
-                  </p>
+                        <CardDescription className="mt-2">
+                          {ticketType.description ||
+                            "Bilhete para o evento"}
+                        </CardDescription>
+                      </div>
 
-                  <Button
-                    className="mt-5 w-full"
-                    disabled={
-                      ticketType.quantity <= 0 ||
-                      loadingId ===
-                        ticketType.id
-                    }
-                    onClick={() =>
-                      buyTicket(
-                        ticketType.id,
-                      )
-                    }
-                  >
-                    {loadingId ===
-                    ticketType.id ? (
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                    ) : (
-                      <Ticket className="mr-2 size-4" />
-                    )}
+                      <Ticket className="size-5 text-muted-foreground" />
+                    </div>
+                  </CardHeader>
 
-                    {ticketType.quantity <= 0
-                      ? "Esgotado"
-                      : "Obter bilhete"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ),
+                  <CardContent>
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xl font-bold">
+                          {Number(
+                            ticketType.price,
+                          ).toLocaleString(
+                            "pt-MZ",
+                            {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            },
+                          )}
+                        </p>
+
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {
+                            ticketType.quantity
+                          }{" "}
+                          disponível(is)
+                        </p>
+                      </div>
+
+                      {soldOut && (
+                        <Badge variant="secondary">
+                          Esgotado
+                        </Badge>
+                      )}
+                    </div>
+
+                    <Button
+                      className="mt-6 w-full"
+                      disabled={
+                        soldOut ||
+                        buying
+                      }
+                      onClick={() =>
+                        getTicket(
+                          ticketType.id,
+                        )
+                      }
+                    >
+                      {buying ? (
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                      ) : (
+                        <Ticket className="mr-2 size-4" />
+                      )}
+
+                      {soldOut
+                        ? "Esgotado"
+                        : "Obter bilhete"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )
+            },
           )}
         </div>
       )}

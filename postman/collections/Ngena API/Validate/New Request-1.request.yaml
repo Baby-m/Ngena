@@ -1,5 +1,9 @@
 $kind: http-request
 name: New Request
-url: ""
+url: "{{apiUrl}}/api/dashboard/organizer"
 method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0xi2}}"
 order: 1969

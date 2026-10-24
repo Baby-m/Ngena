@@ -174,6 +174,7 @@ export default async function EventDetailsPage({ params }: PageProps) {
         </Card>
 
         <EventTicketTypes
+          eventId={id}
           ticketTypes={ticketTypes}
         />
       </div>

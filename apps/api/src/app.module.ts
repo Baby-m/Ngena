@@ -10,6 +10,7 @@ import { CheckInsModule } from './modules/checkins/checkins.module.js';
 import { GatesModule } from './modules/gates/gates.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { PaymentsModule } from './modules/payments/payments.module.js';
+import { AvailabilityModule } from './modules/availability/availability.module.js';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PaymentsModule } from './modules/payments/payments.module.js';
     TicketsModule,
     DashboardModule,
     PaymentsModule,
+    AvailabilityModule,
   ],
 })
 export class AppModule {}

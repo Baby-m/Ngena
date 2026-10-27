@@ -95,11 +95,18 @@ export default async function EventDetailsPage({ params }: PageProps) {
     )
   }
 
-  if (!event) {
+  if (
+    !event ||
+    (event.status !== "PUBLISHED" &&
+      event.status !== "COMPLETED")
+  ) {
     notFound()
   }
 
-  const ticketTypes = await getTicketTypes(id)
+  const ticketTypes =
+    event.status === "PUBLISHED"
+      ? await getTicketTypes(id)
+      : []
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -173,9 +180,21 @@ export default async function EventDetailsPage({ params }: PageProps) {
           </CardContent>
         </Card>
 
-        <EventTicketTypes
-          ticketTypes={ticketTypes}
-        />
+        {event.status === "PUBLISHED" ? (
+          <EventTicketTypes
+            eventId={id}
+            ticketTypes={ticketTypes}
+          />
+        ) : (
+          <Card className="mt-10">
+            <CardHeader>
+              <CardTitle>Evento concluído</CardTitle>
+              <CardDescription>
+                Este evento já terminou. A compra de bilhetes não está disponível.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
       </div>
     </main>
   )

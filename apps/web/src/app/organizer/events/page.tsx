@@ -64,7 +64,12 @@ export default function OrganizerEventsPage() {
 
     const request =
       user.role === "SUPER_ADMIN"
-        ? apiRequest<Event[]>("/events")
+        ? apiRequest<Event[]>(
+            "/dashboard/admin/events",
+            {
+              token,
+            },
+          )
         : apiRequest<Event[]>(
             "/events/mine",
             {

@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 
 import {
+  EventStatus,
   OrderStatus,
   PaymentStatus,
   TicketStatus,
@@ -27,18 +29,32 @@ export class PaymentsService {
   async pay(customerId: string, dto: CreatePaymentDto) {
     const ticketType = await this.prisma.ticketType.findUnique({
       where: { id: dto.ticketTypeId },
+      include: {
+        event: {
+          select: {
+            status: true,
+          },
+        },
+      },
     });
 
     if (!ticketType) {
       throw new NotFoundException('Ticket type not found');
     }
 
-    // Resposta rapida: se ja esgotou, nem chega a cobrar
+    // Só é permitido comprar bilhetes para eventos publicados.
+    if (ticketType.event.status !== EventStatus.PUBLISHED) {
+      throw new ForbiddenException(
+        'Tickets can only be purchased for published events',
+      );
+    }
+
+    // Se já esgotou, não tentamos processar o pagamento.
     if (ticketType.quantity <= 0) {
       throw new BadRequestException('This ticket type is sold out');
     }
 
-    // 1) "Cobrar" (aqui e o banco de mentira)
+    // Provider simulado: não realiza uma cobrança financeira real.
     const charge = await this.provider.charge({
       amount: ticketType.price.toString(),
       method: dto.method,
@@ -55,7 +71,8 @@ export class PaymentsService {
       ticketTypeId: ticketType.id,
     };
 
-    // 2) Falhou: so guardamos o registo. Nada mais muda.
+    // Se o pagamento falhar, guardamos o registo sem criar encomenda
+    // ou bilhete e sem reduzir a quantidade disponível.
     if (!charge.success) {
       const payment = await this.prisma.payment.create({
         data: {
@@ -65,17 +82,47 @@ export class PaymentsService {
         },
       });
 
-      return { payment, order: null, ticket: null };
+      return {
+        payment,
+        order: null,
+        ticket: null,
+      };
     }
 
-    // 3) Pagou: stock + encomenda + bilhete + pagamento, tudo ou nada
+    // Verificamos novamente o estado do evento e reservamos o stock
+    // dentro da transação.
     const result = await this.prisma.$transaction(async (tx) => {
-      const reserved = await tx.ticketType.updateMany({
-        where: { id: ticketType.id, quantity: { gte: 1 } },
-        data: { quantity: { decrement: 1 } },
+      const event = await tx.event.findUnique({
+        where: {
+          id: ticketType.eventId,
+        },
+        select: {
+          status: true,
+        },
       });
 
-      // Esgotou no mesmo instante (outra pessoa comprou o ultimo)
+      if (!event || event.status !== EventStatus.PUBLISHED) {
+        throw new ForbiddenException(
+          'Tickets can only be purchased for published events',
+        );
+      }
+
+      // A atualização condicional impede a venda do mesmo último
+      // bilhete a vários clientes em simultâneo.
+      const reserved = await tx.ticketType.updateMany({
+        where: {
+          id: ticketType.id,
+          quantity: {
+            gte: 1,
+          },
+        },
+        data: {
+          quantity: {
+            decrement: 1,
+          },
+        },
+      });
+
       if (reserved.count === 0) {
         await tx.payment.create({
           data: {
@@ -104,7 +151,13 @@ export class PaymentsService {
           customerId,
           ticketTypeId: ticketType.id,
         },
-        include: { ticketType: { include: { event: true } } },
+        include: {
+          ticketType: {
+            include: {
+              event: true,
+            },
+          },
+        },
       });
 
       const payment = await tx.payment.create({
@@ -116,7 +169,11 @@ export class PaymentsService {
         },
       });
 
-      return { payment, order, ticket };
+      return {
+        payment,
+        order,
+        ticket,
+      };
     });
 
     if (!result) {
@@ -128,9 +185,19 @@ export class PaymentsService {
 
   findMine(customerId: string) {
     return this.prisma.payment.findMany({
-      where: { customerId },
-      include: { ticketType: { include: { event: true } } },
-      orderBy: { createdAt: 'desc' },
+      where: {
+        customerId,
+      },
+      include: {
+        ticketType: {
+          include: {
+            event: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
   }
 

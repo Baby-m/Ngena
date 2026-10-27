@@ -15,8 +15,10 @@ type Availability = {
   ticketTypes: AreaAvailability[];
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-const REFRESH_MS = 5000; // pergunta a API de 5 em 5 segundos
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:3001/api';
+
+const REFRESH_MS = 5000;
 
 export function useAvailability(eventId: string) {
   const [data, setData] = useState<Availability | null>(null);
@@ -27,11 +29,16 @@ export function useAvailability(eventId: string) {
 
     async function load() {
       try {
-        const res = await fetch(`${API_URL}/events/${eventId}/availability`, {
-          cache: 'no-store',
-        });
+        const res = await fetch(
+          `${API_URL}/events/${eventId}/availability`,
+          {
+            cache: 'no-store',
+          },
+        );
 
-        if (!res.ok) throw new Error('bad status');
+        if (!res.ok) {
+          throw new Error('Failed to load availability');
+        }
 
         const json = (await res.json()) as Availability;
 
@@ -40,15 +47,18 @@ export function useAvailability(eventId: string) {
           setError(false);
         }
       } catch {
-        if (active) setError(true);
+        if (active) {
+          setError(true);
+        }
       }
     }
 
-    load();
+    void load();
 
     const timer = setInterval(() => {
-      // so atualiza se o separador estiver visivel
-      if (document.visibilityState === 'visible') load();
+      if (document.visibilityState === 'visible') {
+        void load();
+      }
     }, REFRESH_MS);
 
     return () => {
@@ -57,8 +67,8 @@ export function useAvailability(eventId: string) {
     };
   }, [eventId]);
 
-  // dicionario por id, para ligar facilmente ao botao Comprar
   const byId: Record<string, AreaAvailability> = {};
+
   for (const area of data?.ticketTypes ?? []) {
     byId[area.id] = area;
   }

@@ -4,7 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { UserRole } from '../../../generated/prisma/client.js';
+import {
+  EventStatus,
+  UserRole,
+} from '../../../generated/prisma/client.js';
+
 import { PrismaService } from '../../database/prisma.service.js';
 import { CreateEventDto } from './dto/create-event.dto.js';
 import { UpdateEventDto } from './dto/update-event.dto.js';
@@ -33,8 +37,17 @@ export class EventsService {
     });
   }
 
+  // Listagem pública: apenas eventos publicados ou concluídos.
   findAll() {
     return this.prisma.event.findMany({
+      where: {
+        status: {
+          in: [
+            EventStatus.PUBLISHED,
+            EventStatus.COMPLETED,
+          ],
+        },
+      },
       include: {
         organizer: {
           select: {

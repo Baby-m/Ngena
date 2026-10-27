@@ -1,4 +1,12 @@
-import { IsEnum, IsIn, IsOptional, IsUUID, Matches } from 'class-validator';
+import {
+  IsEnum,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsUUID,
+  Matches,
+  ValidateIf,
+} from 'class-validator';
 
 import { PaymentMethod } from '../../../../generated/prisma/client.js';
 
@@ -9,11 +17,14 @@ export class CreatePaymentDto {
   @IsEnum(PaymentMethod)
   method!: PaymentMethod;
 
-  @IsOptional()
-  @Matches(/^\+?\d{9,15}$/)
+  @ValidateIf((dto: CreatePaymentDto) => dto.method !== PaymentMethod.CARD)
+  @IsNotEmpty({ message: 'Phone is required for mobile payments' })
+  @Matches(/^\+?\d{9,15}$/, {
+    message: 'Phone must contain 9 to 15 digits',
+  })
   phone?: string;
 
-  // So para testes: "failure" faz o pagamento falhar
+  // Apenas para testes: "failure" simula um pagamento recusado.
   @IsOptional()
   @IsIn(['success', 'failure'])
   simulate?: 'success' | 'failure';

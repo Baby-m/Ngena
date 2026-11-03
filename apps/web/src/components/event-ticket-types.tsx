@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Ticket } from "lucide-react"
 
@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { apiRequest } from "@/lib/api"
-import { getToken } from "@/lib/auth"
+import { getStoredUser, getToken } from "@/lib/auth"
 import { useAvailability } from "@/lib/use-availability"
 import type { TicketType } from "@/types/ticket-type"
 
@@ -59,6 +59,14 @@ export function EventTicketTypes({ eventId, ticketTypes }: Props) {
   const [simulateFailure, setSimulateFailure] = useState(false)
   const [error, setError] = useState("")
 
+  // Perfil de quem esta logado. Le do localStorage, por isso so no browser.
+  // undefined = ainda nao sabemos; null = sem sessao
+  const [role, setRole] = useState<string | null | undefined>(undefined)
+
+  useEffect(() => {
+    setRole(getStoredUser()?.role ?? null)
+  }, [])
+
   async function pay(ticketTypeId: string) {
     const token = getToken()
 
@@ -97,7 +105,10 @@ export function EventTicketTypes({ eventId, ticketTypes }: Props) {
     } catch (err) {
       const message = err instanceof Error ? err.message : ""
 
-      if (message.includes("Authentication required")) {
+      if (
+        message.includes("Authentication required") ||
+        message.includes("Invalid or expired token")
+      ) {
         router.push("/login")
         return
       }
@@ -144,6 +155,9 @@ export function EventTicketTypes({ eventId, ticketTypes }: Props) {
 
             const paying = payingId === ticketType.id
             const open = openId === ticketType.id && !soldOut
+
+            // organizador, porteiro ou admin: nao podem comprar
+            const notCustomer = typeof role === "string" && role !== "CUSTOMER"
 
             return (
               <Card key={ticketType.id}>
@@ -265,17 +279,30 @@ export function EventTicketTypes({ eventId, ticketTypes }: Props) {
                         </Button>
                       </div>
                     </div>
+                  ) : notCustomer && !soldOut ? (
+                    <p className="mt-6 text-sm text-muted-foreground">
+                      Só contas de cliente podem comprar bilhetes.
+                    </p>
                   ) : (
                     <Button
                       className="mt-6 w-full"
                       disabled={soldOut}
                       onClick={() => {
+                        if (role === null) {
+                          router.push("/login")
+                          return
+                        }
+
                         setError("")
                         setOpenId(ticketType.id)
                       }}
                     >
                       <Ticket className="mr-2 size-4" />
-                      {soldOut ? "Esgotado" : "Comprar"}
+                      {soldOut
+                        ? "Esgotado"
+                        : role === null
+                          ? "Entrar para comprar"
+                          : "Comprar"}
                     </Button>
                   )}
                 </CardContent>

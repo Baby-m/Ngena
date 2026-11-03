@@ -104,7 +104,7 @@ export default function CreateEventPage() {
         })
 
       router.push(
-        `/events/${createdEvent.id}`,
+        `/organizer/events/${createdEvent.id}/edit`,
       )
     } catch (error) {
       setError(

@@ -8,6 +8,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import {
+  Roles,
+} from '../auth/decorators/roles.decorator.js';
+
+import {
+  RolesGuard,
+} from '../auth/guards/roles.guard.js';
+
 import { UserRole } from '../../../generated/prisma/client.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -28,12 +36,26 @@ export class GatesController {
   ) {}
 
   @Get('events/:eventId/gates')
+  @UseGuards(
+    JwtAuthGuard,
+    RolesGuard,
+  )
+  @Roles(
+    UserRole.ORGANIZER,
+    UserRole.SUPER_ADMIN,
+  )
   findByEvent(
-    @Param('eventId') eventId: string,
+    @Param('eventId')
+    eventId: string,
+
+    @CurrentUser()
+    user: AuthUser,
   ) {
-    return this.gatesService.findByEvent(
-      eventId,
-    );
+    return this.gatesService
+      .findByEvent(
+        eventId,
+        user,
+      );
   }
 
   @Post('events/:eventId/gates')

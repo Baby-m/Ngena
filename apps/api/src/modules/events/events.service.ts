@@ -63,20 +63,75 @@ export class EventsService {
   }
 
   async findOne(id: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id },
-      include: {
-        organizer: {
-          select: {
-            id: true,
-            name: true,
+    const event =
+      await this.prisma.event.findFirst({
+        where: {
+          id,
+
+          status: {
+            in: [
+              EventStatus.PUBLISHED,
+              EventStatus.COMPLETED,
+            ],
           },
         },
-      },
-    });
+
+        include: {
+          organizer: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
 
     if (!event) {
-      throw new NotFoundException('Event not found');
+      throw new NotFoundException(
+        'Event not found',
+      );
+    }
+
+    return event;
+  }
+
+  async findOneForManagement(
+    id: string,
+    user: CurrentUser,
+  ) {
+    const event =
+      await this.prisma.event.findUnique({
+        where: {
+          id,
+        },
+
+        include: {
+          organizer: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+    if (!event) {
+      throw new NotFoundException(
+        'Event not found',
+      );
+    }
+
+    const isOwner =
+      event.organizerId === user.id;
+
+    const isAdmin =
+      user.role ===
+      UserRole.SUPER_ADMIN;
+
+    if (!isOwner && !isAdmin) {
+      throw new NotFoundException(
+        'Event not found',
+      );
     }
 
     return event;

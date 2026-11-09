@@ -10,6 +10,7 @@ import {
 } from '../realtime/realtime.gateway.js';
 
 import {
+  EntryRequestStatus,
   TicketStatus,
   UserRole,
 } from '../../../generated/prisma/client.js';
@@ -211,6 +212,28 @@ export class CheckInsService {
             },
           });
 
+        const resolvedAt = new Date();
+
+        const resolvedEntryRequests =
+          await tx.entryRequest.updateManyAndReturn({
+            where: {
+              ticketId: ticket.id,
+              status: EntryRequestStatus.PENDING,
+            },
+            data: {
+              status: EntryRequestStatus.CONFIRMED,
+              resolvedById: userId,
+              resolvedAt,
+            },
+            select: {
+              id: true,
+              gateId: true,
+              customerId: true,
+              status: true,
+              resolvedAt: true,
+            },
+          });
+
         const updatedTicket =
           await tx.ticket.findUnique({
             where: {
@@ -218,9 +241,9 @@ export class CheckInsService {
             },
           });
 
-                return {
+        return {
           success: true,
-
+          resolvedEntryRequests,
           message:
             'Entry authorized',
 
@@ -260,6 +283,25 @@ export class CheckInsService {
             .createdAt,
       });
 
-    return result;
+      for (const request of result.resolvedEntryRequests) {
+        try {
+          await this.realtimeGateway.emitEntryRequestResolved({
+            requestId: request.id,
+            gateId: request.gateId,
+            customerId: request.customerId,
+            status: request.status,
+            resolvedAt: request.resolvedAt!,
+          });
+        } catch (error) {
+          console.error(
+            'Failed to notify entry request resolution',
+            error,
+          );
+        }
+      }
+
+    const { resolvedEntryRequests: _resolvedEntryRequests, ...response } = result;
+
+    return response;
   }
 }

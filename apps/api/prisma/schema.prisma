@@ -13,6 +13,7 @@ enum UserRole {
   GATE_MANAGER
   GATE_STAFF
   CUSTOMER
+  BAR_STAFF
 }
 
 model User {
@@ -36,6 +37,11 @@ model User {
   checkIns CheckIn[]
 
   gateAssignments GateStaff[]
+  barAssignments BarStaff[]
+  barSosCreated BarSos[] @relation("BarSosRequester")
+  barSosForwarded BarSos[] @relation("BarSosForwarder")
+  barSosResolved BarSos[] @relation("BarSosResolver")
+  barSosAssigned BarSos[] @relation("BarSosAssignee")
 }
 
 enum EventStatus {
@@ -63,6 +69,8 @@ model Event {
   ticketTypes TicketType[]
 
   gates Gate[]
+  barStaff BarStaff[]
+  barSos BarSos[]
 
   @@index([organizerId])
   @@index([status])
@@ -230,4 +238,49 @@ model Payment {
 
  @@index([customerId])
  @@index([ticketTypeId])
+}
+
+
+enum BarSosStatus {
+  PENDING
+  FORWARDED
+  RESOLVED
+}
+
+model BarStaff {
+  id String @id @default(uuid())
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+model BarSos {
+  id String @id @default(uuid())
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  requestedById String
+  requestedBy User @relation("BarSosRequester", fields: [requestedById], references: [id])
+  message String @db.VarChar(500)
+  status BarSosStatus @default(PENDING)
+  activeKey String? @unique
+
+  forwardedById String?
+  forwardedBy User? @relation("BarSosForwarder", fields: [forwardedById], references: [id])
+  assignedManagerId String?
+  assignedManager User? @relation("BarSosAssignee", fields: [assignedManagerId], references: [id])
+  resolvedById String?
+  resolvedBy User? @relation("BarSosResolver", fields: [resolvedById], references: [id])
+
+  createdAt DateTime @default(now())
+  forwardedAt DateTime?
+  resolvedAt DateTime?
+
+  @@index([eventId, status])
+  @@index([requestedById])
+  @@index([assignedManagerId, status])
 }

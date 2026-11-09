@@ -14,6 +14,8 @@ import {
   AvailabilityModule,
 } from './modules/availability/availability.module.js';
 
+import { BarSosModule } from './modules/bar-sos/bar-sos.module.js';
+
 import {
   CheckInsModule,
 } from './modules/checkins/checkins.module.js';
@@ -69,6 +71,7 @@ import {
     DashboardModule,
     PaymentsModule,
     AvailabilityModule,
+    BarSosModule,
   ],
 })
 export class AppModule {}

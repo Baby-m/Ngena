@@ -6,6 +6,7 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayInit,
+  OnGatewayConnection,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -59,7 +60,7 @@ type CheckInCreatedPayload = {
   },
 })
 export class RealtimeGateway
-  implements OnGatewayInit
+  implements OnGatewayInit, OnGatewayConnection
 {
   @WebSocketServer()
   private server!: Namespace;
@@ -226,6 +227,34 @@ export class RealtimeGateway
           event.id,
       },
     );
+  }
+
+  handleConnection(client: Socket) {
+    const user = client.data.user as RealtimeUser | undefined;
+    if (user) void client.join(this.userRoom(user.id));
+  }
+
+  emitBarSosUpdate(payload: {
+    id: string;
+    eventId: string;
+    requestedById: string;
+    assignedManagerId?: string;
+    status: string;
+  }) {
+    const notification = {
+      id: payload.id,
+      eventId: payload.eventId,
+      status: payload.status,
+    };
+    this.server.to(this.eventRoom(payload.eventId)).emit('bar-sos.updated', notification);
+    this.server.to(this.userRoom(payload.requestedById)).emit('bar-sos.updated', notification);
+    if (payload.assignedManagerId) {
+      this.server.to(this.userRoom(payload.assignedManagerId)).emit('bar-sos.updated', notification);
+    }
+  }
+
+  private userRoom(userId: string) {
+    return 'user:' + userId;
   }
 
   emitCheckInCreated(

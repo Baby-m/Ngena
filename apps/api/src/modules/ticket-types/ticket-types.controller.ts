@@ -9,6 +9,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import {
+  Roles,
+} from '../auth/decorators/roles.decorator.js';
+
+import {
+  RolesGuard,
+} from '../auth/guards/roles.guard.js';
+
 import { UserRole } from '../../../generated/prisma/client.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -35,6 +43,31 @@ export class TicketTypesController {
     return this.ticketTypesService.findByEvent(
       eventId,
     );
+  }
+
+  @Get(
+    'events/:eventId/ticket-types/manage',
+  )
+  @UseGuards(
+    JwtAuthGuard,
+    RolesGuard,
+  )
+  @Roles(
+    UserRole.ORGANIZER,
+    UserRole.SUPER_ADMIN,
+  )
+  findByEventForManagement(
+    @Param('eventId')
+    eventId: string,
+
+    @CurrentUser()
+    user: AuthUser,
+  ) {
+    return this.ticketTypesService
+      .findByEventForManagement(
+        eventId,
+        user,
+      );
   }
 
   @Post('events/:eventId/ticket-types')

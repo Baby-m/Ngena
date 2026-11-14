@@ -64,7 +64,12 @@ export default function OrganizerEventsPage() {
 
     const request =
       user.role === "SUPER_ADMIN"
-        ? apiRequest<Event[]>("/events")
+        ? apiRequest<Event[]>(
+            "/dashboard/admin/events",
+            {
+              token,
+            },
+          )
         : apiRequest<Event[]>(
             "/events/mine",
             {
@@ -233,17 +238,22 @@ export default function OrganizerEventsPage() {
                       Gates
                     </Button>
 
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      render={
-                        <Link
-                          href={`/events/${event.id}`}
-                        />
-                      }
-                    >
-                      Ver público
-                    </Button>
+                    {(
+                      event.status === "PUBLISHED" ||
+                      event.status === "COMPLETED"
+                    ) && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        render={
+                          <Link
+                            href={`/events/${event.id}`}
+                          />
+                        }
+                      >
+                        Ver público
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

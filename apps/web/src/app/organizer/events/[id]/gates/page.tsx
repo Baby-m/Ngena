@@ -118,9 +118,19 @@ export default function GatesPage() {
     useState("")
 
   async function refreshGates() {
+    const token = getToken()
+
+    if (!token) {
+      router.replace("/login")
+      return
+    }
+
     const result =
       await apiRequest<Gate[]>(
         `/events/${params.id}/gates`,
+        {
+          token,
+        },
       )
 
     setGates(result)
@@ -146,6 +156,9 @@ export default function GatesPage() {
     Promise.all([
       apiRequest<Gate[]>(
         `/events/${params.id}/gates`,
+        {
+          token,
+        },
       ),
 
       apiRequest<StaffCandidate[]>(

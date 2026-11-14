@@ -22,6 +22,8 @@ model User {
   password String
   role     UserRole @default(CUSTOMER)
 
+  payments Payment[]
+
   events Event[]
 
   createdAt DateTime @default(now())
@@ -81,6 +83,8 @@ model TicketType {
   tickets   Ticket[]
 
   @@index([eventId])
+
+  payments Payment[]
 }
 
 enum OrderStatus {
@@ -109,6 +113,8 @@ model Order {
   updatedAt DateTime @updatedAt
 
   @@index([customerId])
+
+  payment Payment?
 }
 
 model Ticket {
@@ -182,4 +188,46 @@ model GateStaff {
 
   @@unique([gateId, userId])
   @@index([userId])
+}
+
+enum PaymentStatus {
+ PAID
+ FAILED
+}
+enum PaymentMethod {
+ MPESA
+ EMOLA
+ MKESH
+ CARD
+}
+enum PaymentProvider {
+ SIMULATED
+}
+
+model Payment {
+ id String @id @default(uuid())
+ amount Decimal @db.Decimal(12, 2)
+ currency String @default("MZN")
+ method PaymentMethod
+ provider PaymentProvider @default(SIMULATED)
+ status PaymentStatus
+ reference String @unique
+ phone String?
+ failureReason String?
+ paidAt DateTime?
+
+ customerId String
+ customer User @relation(fields: [customerId], references: [id])
+
+ ticketTypeId String
+ ticketType TicketType @relation(fields: [ticketTypeId], references: [id])
+
+ orderId String? @unique
+ order Order? @relation(fields: [orderId], references: [id])
+
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ @@index([customerId])
+ @@index([ticketTypeId])
 }

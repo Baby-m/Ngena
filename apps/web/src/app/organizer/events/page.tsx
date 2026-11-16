@@ -8,11 +8,13 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   CalendarDays,
+  Copy,
   DoorOpen,
   Edit3,
   MapPin,
   Plus,
   Ticket,
+  Trash2,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -33,6 +35,30 @@ import {
 
 import type { Event } from "@/types/event"
 
+// Mensagens da API traduzidas para o utilizador
+const ACTION_ERRORS: Record<string, string> = {
+  "Events with sales activity cannot be deleted":
+    "Este evento já tem vendas ou pagamentos e não pode ser eliminado.",
+  "Only draft events can be deleted":
+    "Só eventos em rascunho podem ser eliminados.",
+  "Event can no longer be deleted":
+    "O evento já não pode ser eliminado.",
+  "Event has related records and cannot be deleted":
+    "O evento tem registos associados e não pode ser eliminado.",
+  "Event not found": "Evento não encontrado.",
+}
+
+function translateError(
+  error: unknown,
+  fallback: string,
+) {
+  if (!(error instanceof Error)) {
+    return fallback
+  }
+
+  return ACTION_ERRORS[error.message] ?? error.message
+}
+
 export default function OrganizerEventsPage() {
   const router = useRouter()
 
@@ -44,6 +70,10 @@ export default function OrganizerEventsPage() {
 
   const [error, setError] =
     useState("")
+
+  // id do evento com uma ação (recriar ou eliminar) em curso
+  const [busyId, setBusyId] =
+    useState<string | null>(null)
 
   useEffect(() => {
     const token = getToken()
@@ -98,6 +128,87 @@ export default function OrganizerEventsPage() {
         setLoading(false)
       })
   }, [router])
+
+  // Recriar: cria uma cópia em rascunho e abre a edição para ajustar as datas
+  async function duplicateEvent(eventId: string) {
+    const token = getToken()
+
+    if (!token) {
+      router.replace("/login")
+      return
+    }
+
+    setBusyId(eventId)
+    setError("")
+
+    try {
+      const copy = await apiRequest<Event>(
+        `/events/${eventId}/duplicate`,
+        {
+          method: "POST",
+          token,
+        },
+      )
+
+      router.push(
+        `/organizer/events/${copy.id}/edit`,
+      )
+    } catch (error) {
+      setError(
+        translateError(
+          error,
+          "Não foi possível recriar o evento",
+        ),
+      )
+      setBusyId(null)
+    }
+  }
+
+  // Eliminar: só rascunhos; a API recusa se já houve vendas
+  async function deleteEvent(event: Event) {
+    const confirmed = window.confirm(
+      `Eliminar o evento "${event.name}"? Esta ação não pode ser desfeita.`,
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    const token = getToken()
+
+    if (!token) {
+      router.replace("/login")
+      return
+    }
+
+    setBusyId(event.id)
+    setError("")
+
+    try {
+      await apiRequest<{ message: string }>(
+        `/events/${event.id}`,
+        {
+          method: "DELETE",
+          token,
+        },
+      )
+
+      setEvents((current) =>
+        current.filter(
+          (item) => item.id !== event.id,
+        ),
+      )
+    } catch (error) {
+      setError(
+        translateError(
+          error,
+          "Não foi possível eliminar o evento",
+        ),
+      )
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -237,6 +348,33 @@ export default function OrganizerEventsPage() {
                       <DoorOpen className="mr-2 size-4" />
                       Gates
                     </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busyId === event.id}
+                      onClick={() =>
+                        duplicateEvent(event.id)
+                      }
+                    >
+                      <Copy className="mr-2 size-4" />
+                      Duplicar
+                    </Button>
+
+                    {event.status === "DRAFT" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive"
+                        disabled={busyId === event.id}
+                        onClick={() =>
+                          deleteEvent(event)
+                        }
+                      >
+                        <Trash2 className="mr-2 size-4" />
+                        Eliminar
+                      </Button>
+                    )}
 
                     {(
                       event.status === "PUBLISHED" ||

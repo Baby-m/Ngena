@@ -54,6 +54,10 @@ import {
   UsersModule,
 } from './modules/users/users.module.js';
 
+import {
+  InvitesModule,
+} from './modules/invites/invites.module.js';
+
 @Module({
   imports: [
     DatabaseModule,
@@ -68,6 +72,7 @@ import {
     CheckInsModule,
     DashboardModule,
     PaymentsModule,
+    InvitesModule,
     AvailabilityModule,
   ],
 })

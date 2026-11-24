@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import {
   BadRequestException,
   ForbiddenException,
@@ -27,6 +29,9 @@ export class PaymentsService {
   ) {}
 
   async pay(customerId: string, dto: CreatePaymentDto) {
+    // 1 ou 2 bilhetes por compra (validado no DTO).
+    const quantity = dto.quantity ?? 1;
+
     const ticketType = await this.prisma.ticketType.findUnique({
       where: { id: dto.ticketTypeId },
       include: {
@@ -54,16 +59,24 @@ export class PaymentsService {
       throw new BadRequestException('This ticket type is sold out');
     }
 
+    if (ticketType.quantity < quantity) {
+      throw new BadRequestException('Not enough tickets available');
+    }
+
+    // Valor total da compra: preço unitário x número de bilhetes.
+    const total = ticketType.price.mul(quantity);
+
     // Provider simulado: não realiza uma cobrança financeira real.
     const charge = await this.provider.charge({
-      amount: ticketType.price.toString(),
+      amount: total.toString(),
       method: dto.method,
       phone: dto.phone,
       simulate: dto.simulate,
     });
 
     const base = {
-      amount: ticketType.price,
+      amount: total,
+      quantity,
       method: dto.method,
       phone: dto.phone,
       reference: charge.reference,
@@ -72,7 +85,7 @@ export class PaymentsService {
     };
 
     // Se o pagamento falhar, guardamos o registo sem criar encomenda
-    // ou bilhete e sem reduzir a quantidade disponível.
+    // ou bilhetes e sem reduzir a quantidade disponível.
     if (!charge.success) {
       const payment = await this.prisma.payment.create({
         data: {
@@ -86,6 +99,8 @@ export class PaymentsService {
         payment,
         order: null,
         ticket: null,
+        tickets: [],
+        invites: [],
       };
     }
 
@@ -107,18 +122,18 @@ export class PaymentsService {
         );
       }
 
-      // A atualização condicional impede a venda do mesmo último
-      // bilhete a vários clientes em simultâneo.
+      // A atualização condicional impede a venda dos mesmos últimos
+      // bilhetes a vários clientes em simultâneo. Desconta todos de uma vez.
       const reserved = await tx.ticketType.updateMany({
         where: {
           id: ticketType.id,
           quantity: {
-            gte: 1,
+            gte: quantity,
           },
         },
         data: {
           quantity: {
-            decrement: 1,
+            decrement: quantity,
           },
         },
       });
@@ -128,7 +143,8 @@ export class PaymentsService {
           data: {
             ...base,
             status: PaymentStatus.FAILED,
-            failureReason: 'Sold out',
+            failureReason:
+              quantity > 1 ? 'Not enough tickets available' : 'Sold out',
           },
         });
 
@@ -138,27 +154,53 @@ export class PaymentsService {
       const order = await tx.order.create({
         data: {
           customerId,
-          total: ticketType.price,
+          total,
           status: OrderStatus.CONFIRMED,
         },
       });
 
-      const ticket = await tx.ticket.create({
-        data: {
-          code: this.generateTicketCode(),
-          status: TicketStatus.VALID,
-          orderId: order.id,
-          customerId,
-          ticketTypeId: ticketType.id,
-        },
-        include: {
-          ticketType: {
-            include: {
-              event: true,
+      const tickets = [];
+
+      for (let index = 0; index < quantity; index += 1) {
+        const ticket = await tx.ticket.create({
+          data: {
+            code: this.generateTicketCode(),
+            status: TicketStatus.VALID,
+            orderId: order.id,
+            customerId,
+            ticketTypeId: ticketType.id,
+          },
+          include: {
+            ticketType: {
+              include: {
+                event: true,
+              },
             },
           },
-        },
-      });
+        });
+
+        tickets.push(ticket);
+      }
+
+      // Todos os bilhetes ficam na conta de quem comprou. Do segundo em diante,
+      // cada bilhete tem um convite: quem o aceitar fica com o bilhete na sua conta.
+      const invites = [];
+
+      for (const ticket of tickets.slice(1)) {
+        const invite = await tx.ticketInvite.create({
+          data: {
+            token: this.generateInviteToken(),
+            ticketId: ticket.id,
+            createdById: customerId,
+          },
+          select: {
+            token: true,
+            ticketId: true,
+          },
+        });
+
+        invites.push(invite);
+      }
 
       const payment = await tx.payment.create({
         data: {
@@ -172,12 +214,18 @@ export class PaymentsService {
       return {
         payment,
         order,
-        ticket,
+        ticket: tickets[0],
+        tickets,
+        invites,
       };
     });
 
     if (!result) {
-      throw new BadRequestException('This ticket type is sold out');
+      throw new BadRequestException(
+        quantity > 1
+          ? 'Not enough tickets available'
+          : 'This ticket type is sold out',
+      );
     }
 
     return result;
@@ -207,5 +255,10 @@ export class PaymentsService {
       .replaceAll('-', '')
       .slice(0, 8)
       .toUpperCase()}`;
+  }
+
+  // Código secreto do convite: 24 bytes aleatórios (192 bits), difícil de adivinhar.
+  private generateInviteToken() {
+    return randomBytes(24).toString('base64url');
   }
 }

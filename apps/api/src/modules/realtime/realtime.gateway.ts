@@ -258,6 +258,25 @@ export class RealtimeGateway
     );
   }
 
+  emitBarSosUpdate(payload: {
+    id: string;
+    eventId: string;
+    requestedById: string;
+    assignedManagerId?: string;
+    status: string;
+  }) {
+    const notification = {
+      id: payload.id,
+      eventId: payload.eventId,
+      status: payload.status,
+    };
+    this.server.to(this.eventRoom(payload.eventId)).emit('bar-sos.updated', notification);
+    this.server.to(this.userRoom(payload.requestedById)).emit('bar-sos.updated', notification);
+    if (payload.assignedManagerId) {
+      this.server.to(this.userRoom(payload.assignedManagerId)).emit('bar-sos.updated', notification);
+    }
+  }
+
   emitCheckInCreated(
     payload:
       CheckInCreatedPayload,

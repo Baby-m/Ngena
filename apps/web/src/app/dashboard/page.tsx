@@ -61,6 +61,10 @@ export default function DashboardPage() {
         )
         break
 
+      case "BAR_STAFF":
+        router.replace("/bar")
+        break
+
       case "CUSTOMER":
         router.replace(
           "/customer",

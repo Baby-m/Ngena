@@ -415,6 +415,10 @@ export default function OrganizerEventDashboardPage() {
           >
             Gerir gates
           </Button>
+
+          <Button variant="outline" render={<Link href={`/organizer/events/${event.id}/bar-sos`} />}>
+            Assistência no bar
+          </Button>
         </div>
 
         <section className="mt-8">

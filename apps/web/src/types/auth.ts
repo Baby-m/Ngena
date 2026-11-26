@@ -4,6 +4,7 @@ export type UserRole =
   | "GATE_MANAGER"
   | "GATE_STAFF"
   | "CUSTOMER"
+  | "BAR_STAFF"
 
 export interface AuthUser {
   id: string

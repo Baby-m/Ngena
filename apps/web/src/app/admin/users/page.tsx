@@ -57,6 +57,7 @@ type UserRole =
   | "GATE_MANAGER"
   | "GATE_STAFF"
   | "CUSTOMER"
+  | "BAR_STAFF"
 
 type AdminUser = {
   id: string
@@ -73,6 +74,7 @@ const roles: UserRole[] = [
   "GATE_MANAGER",
   "GATE_STAFF",
   "CUSTOMER",
+  "BAR_STAFF",
 ]
 
 export default function AdminUsersPage() {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useSyncExternalStore } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Ticket } from "lucide-react"
 
@@ -46,6 +46,19 @@ const METHODS: { value: PaymentMethod; label: string }[] = [
 // A caixa "Simular falha" so aparece se NEXT_PUBLIC_PAYMENTS_MODE=simulated
 const SIMULATED = process.env.NEXT_PUBLIC_PAYMENTS_MODE === "simulated"
 
+function subscribeToStoredRole(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange)
+  return () => window.removeEventListener("storage", onStoreChange)
+}
+
+function getStoredRole() {
+  return getStoredUser()?.role ?? null
+}
+
+function getServerRole(): string | null | undefined {
+  return undefined
+}
+
 export function EventTicketTypes({ eventId, ticketTypes }: Props) {
   const router = useRouter()
 
@@ -61,11 +74,11 @@ export function EventTicketTypes({ eventId, ticketTypes }: Props) {
 
   // Perfil de quem esta logado. Le do localStorage, por isso so no browser.
   // undefined = ainda nao sabemos; null = sem sessao
-  const [role, setRole] = useState<string | null | undefined>(undefined)
-
-  useEffect(() => {
-    setRole(getStoredUser()?.role ?? null)
-  }, [])
+  const role = useSyncExternalStore<string | null | undefined>(
+    subscribeToStoredRole,
+    getStoredRole,
+    getServerRole,
+  )
 
   async function pay(ticketTypeId: string) {
     const token = getToken()

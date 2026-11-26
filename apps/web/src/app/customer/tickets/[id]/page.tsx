@@ -52,6 +52,8 @@ import {
   getToken,
 } from "@/lib/auth"
 
+import { CustomerEntryRequests } from "@/components/entry-requests/customer-entry-requests"
+
 import type {
   Ticket,
 } from "@/types/ticket"
@@ -283,6 +285,7 @@ export default function CustomerTicketPage() {
                 </AlertDescription>
               </Alert>
             )}
+            <CustomerEntryRequests key={ticket.id} ticket={ticket} onTicket={setTicket} />
           </CardContent>
         </Card>
       </div>

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -25,6 +26,7 @@ import {
 
 @Injectable()
 export class CheckInsService {
+  private readonly logger = new Logger(CheckInsService.name);
   constructor(
     private readonly prisma:
       PrismaService,
@@ -264,24 +266,19 @@ export class CheckInsService {
       },
     );
 
-    this.realtimeGateway
-      .emitCheckInCreated({
-        eventId:
-          ticket
-            .ticketType
-            .event
-            .id,
-
-        gateId:
-          gate.id,
-
-        checkInId:
-          result.checkIn.id,
-
-        createdAt:
-          result.checkIn
-            .createdAt,
+    try {
+      this.realtimeGateway.emitCheckInCreated({
+        eventId: ticket.ticketType.event.id,
+        gateId: gate.id,
+        checkInId: result.checkIn.id,
+        createdAt: result.checkIn.createdAt,
       });
+    } catch (error) {
+      this.logger.error(
+        'Failed to emit check-in notification',
+        error,
+      );
+    }
 
       for (const request of result.resolvedEntryRequests) {
         try {

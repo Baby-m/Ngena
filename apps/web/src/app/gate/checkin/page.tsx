@@ -61,6 +61,8 @@ import {
   getToken,
 } from "@/lib/auth"
 
+import { GateEntryRequests } from "@/components/entry-requests/gate-entry-requests"
+
 import type {
   MyGateAssignment,
 } from "@/types/gate"
@@ -463,6 +465,8 @@ export default function GateCheckInPage() {
                 </select>
               </CardContent>
             </Card>
+
+            {gateId && <GateEntryRequests key={gateId} gateId={gateId} />}
 
             <Card>
               <CardHeader>

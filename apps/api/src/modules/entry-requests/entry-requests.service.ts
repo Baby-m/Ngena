@@ -297,6 +297,76 @@ export class EntryRequestsService {
     return ticket;
   }
 
+  async cancel(
+    ticketId: string,
+    requestId: string,
+    customerId: string,
+  ) {
+    await this.findCustomerTicket(ticketId, customerId);
+
+    const request = await this.prisma.entryRequest.findFirst({
+      where: {
+        id: requestId,
+        ticketId,
+        customerId,
+      },
+      select: {
+        id: true,
+        gateId: true,
+        customerId: true,
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Entry request not found');
+    }
+
+    const resolvedAt = new Date();
+
+    const updatedRequest =
+      await this.prisma.entryRequest.updateMany({
+        where: {
+          id: request.id,
+          ticketId,
+          customerId,
+          status: EntryRequestStatus.PENDING,
+        },
+        data: {
+          status: EntryRequestStatus.CANCELLED,
+          resolvedById: customerId,
+          resolvedAt,
+        },
+      });
+
+    if (updatedRequest.count !== 1) {
+      throw new ConflictException(
+        'Entry request has already been resolved',
+      );
+    }
+
+    try {
+      await this.realtimeGateway.emitEntryRequestResolved({
+        requestId: request.id,
+        gateId: request.gateId,
+        customerId: request.customerId,
+        status: EntryRequestStatus.CANCELLED,
+        resolvedAt,
+      });
+    } catch (error) {
+      console.error(
+        'Failed to emit entry cancellation notification',
+        error,
+      );
+    }
+
+    return {
+      success: true,
+      message: 'Entry request cancelled',
+      requestId: request.id,
+      status: EntryRequestStatus.CANCELLED,
+    };
+  }
+
   async findAvailableGates(
     ticketId: string,
     customerId: string,
@@ -420,6 +490,29 @@ export class EntryRequestsService {
           ) {
             throw new BadRequestException(
               'Ticket is not available for entry',
+            );
+          }
+
+          // Check pending and recently rejected requests in one snapshot.
+          const blockingRequest = await tx.entryRequest.findFirst({
+            where: {
+              ticketId,
+              OR: [
+                { status: EntryRequestStatus.PENDING },
+                {
+                  status: EntryRequestStatus.REJECTED,
+                  resolvedAt: { gt: new Date(Date.now() - 60_000) },
+                },
+              ],
+            },
+            select: { status: true },
+          });
+
+          if (blockingRequest) {
+            throw new ConflictException(
+              blockingRequest.status === EntryRequestStatus.PENDING
+                ? 'This ticket already has a pending entry request'
+                : 'Aguarda 60 segundos após a rejeição antes de tentar novamente',
             );
           }
 

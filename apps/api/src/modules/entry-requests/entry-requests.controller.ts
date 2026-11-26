@@ -64,4 +64,17 @@ export class EntryRequestsController {
       body.gateId,
     );
   }
+
+  @Post(':id/entry-requests/:requestId/cancel')
+  cancel(
+    @Param('id') ticketId: string,
+    @Param('requestId') requestId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.entryRequestsService.cancel(
+      ticketId,
+      requestId,
+      user.id,
+    );
+  }
 }

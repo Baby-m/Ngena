@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   CalendarDays,
   MapPin,
-  Ticket,
   User,
 } from "lucide-react"
 import { notFound } from "next/navigation"

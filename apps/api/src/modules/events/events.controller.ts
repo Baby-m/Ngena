@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -87,6 +88,23 @@ export class EventsController {
     );
   }
 
+  // Recriar: novo evento em rascunho a partir de um existente
+  @Post(':id/duplicate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.ORGANIZER,
+    UserRole.SUPER_ADMIN,
+  )
+  duplicate(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.eventsService.duplicate(
+      id,
+      user,
+    );
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   update(
@@ -98,6 +116,23 @@ export class EventsController {
       id,
       user,
       body,
+    );
+  }
+
+  // Eliminar: só rascunhos sem atividade de vendas
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.ORGANIZER,
+    UserRole.SUPER_ADMIN,
+  )
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.eventsService.remove(
+      id,
+      user,
     );
   }
 }

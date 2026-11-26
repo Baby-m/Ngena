@@ -18,6 +18,7 @@ import {
   Loader2,
   MapPin,
   ScanLine,
+  Siren,
 } from "lucide-react"
 
 import {
@@ -45,12 +46,15 @@ import {
   getToken,
 } from "@/lib/auth"
 
+import { useAuthSession } from "@/hooks/use-auth-session"
+
 import type {
   MyGateAssignment,
 } from "@/types/gate"
 
 export default function GateDashboardPage() {
   const router = useRouter()
+  const { user: sessionUser } = useAuthSession()
 
   const [
     assignments,
@@ -156,6 +160,11 @@ export default function GateDashboardPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {sessionUser?.role === "GATE_MANAGER" && (
+              <Button variant="outline" render={<Link href="/gate/bar-sos" />}>
+                <Siren className="mr-2 size-4" /> Assistência no bar
+              </Button>
+            )}
             <Button
               variant="outline"
               render={

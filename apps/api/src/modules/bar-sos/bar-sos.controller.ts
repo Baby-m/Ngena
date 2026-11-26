@@ -34,6 +34,13 @@ export class BarSosController {
     @CurrentUser() user: AuthUser,
   ) { return this.service.removeStaff(eventId, staffUserId, user); }
 
+  @Get('events/:eventId/bar-staff-candidates')
+  @Roles(UserRole.ORGANIZER, UserRole.SUPER_ADMIN)
+  staffCandidates(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @CurrentUser() user: AuthUser,
+  ) { return this.service.staffCandidates(eventId, user); }
+
   @Get('events/:eventId/bar-staff')
   @Roles(UserRole.ORGANIZER, UserRole.SUPER_ADMIN)
   listStaff(
@@ -48,6 +55,10 @@ export class BarSosController {
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateBarSosDto,
   ) { return this.service.create(eventId, user, dto); }
+
+  @Get('bar-sos/my-events')
+  @Roles(UserRole.BAR_STAFF)
+  myEvents(@CurrentUser() user: AuthUser) { return this.service.myEvents(user); }
 
   @Get('bar-sos/mine')
   @Roles(UserRole.BAR_STAFF)
@@ -73,9 +84,16 @@ export class BarSosController {
   assigned(@CurrentUser() user: AuthUser) { return this.service.assigned(user); }
 
   @Post('bar-sos/:id/resolve')
-  @Roles(UserRole.GATE_MANAGER)
+  @Roles(UserRole.GATE_MANAGER, UserRole.ORGANIZER, UserRole.SUPER_ADMIN)
   resolve(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AuthUser,
   ) { return this.service.resolve(id, user); }
+
+  @Post('bar-sos/:id/cancel')
+  @Roles(UserRole.BAR_STAFF, UserRole.ORGANIZER, UserRole.SUPER_ADMIN)
+  cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ) { return this.service.cancel(id, user); }
 }

@@ -65,6 +65,15 @@ export class BarSosService {
     return { message: 'Bar staff removed from event' };
   }
 
+  async staffCandidates(eventId: string, user: AuthUser) {
+    await this.requireEventManager(eventId, user);
+    return this.prisma.user.findMany({
+      where: { role: UserRole.BAR_STAFF },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async listStaff(eventId: string, user: AuthUser) {
     await this.requireEventManager(eventId, user);
     return this.prisma.barStaff.findMany({
@@ -83,18 +92,19 @@ export class BarSosService {
       select: { id: true },
     });
     if (!assignment) throw new ForbiddenException('Not assigned to this event bar');
-    const message = dto.message?.trim() || 'SOS: assistência necessária no bar';
+    const message = dto.message?.trim() || null;
     let sos;
     try {
       sos = await this.prisma.barSos.create({
         data: {
           eventId,
           requestedById: user.id,
+          category: dto.category,
           message,
           activeKey: `${eventId}:${user.id}`,
         },
         select: {
-          id: true, eventId: true, requestedById: true, message: true,
+          id: true, eventId: true, requestedById: true, category: true, message: true,
           status: true, createdAt: true,
         },
       });
@@ -111,11 +121,21 @@ export class BarSosService {
     return sos;
   }
 
+  async myEvents(user: AuthUser) {
+    return this.prisma.barStaff.findMany({
+      where: { userId: user.id },
+      select: {
+        event: { select: { id: true, name: true, location: true, startsAt: true, status: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async mine(user: AuthUser) {
     return this.prisma.barSos.findMany({
       where: { requestedById: user.id },
       select: {
-        id: true, eventId: true, message: true, status: true,
+        id: true, eventId: true, category: true, message: true, status: true,
         assignedManagerId: true, createdAt: true, forwardedAt: true, resolvedAt: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -127,7 +147,7 @@ export class BarSosService {
     return this.prisma.barSos.findMany({
       where: { eventId },
       select: {
-        id: true, eventId: true, message: true, status: true,
+        id: true, eventId: true, category: true, message: true, status: true,
         requestedById: true, assignedManagerId: true, forwardedById: true,
         resolvedById: true, createdAt: true, forwardedAt: true, resolvedAt: true,
         requestedBy: { select: { id: true, name: true } },
@@ -184,17 +204,22 @@ export class BarSosService {
       where: {
         assignedManagerId: user.id,
         eventId: { in: eventIds },
-        status: { in: [BarSosStatus.FORWARDED, BarSosStatus.RESOLVED] },
+        status: { in: [BarSosStatus.FORWARDED, BarSosStatus.RESOLVED, BarSosStatus.CANCELLED] },
       },
       select: {
-        id: true, eventId: true, message: true, status: true,
+        id: true, eventId: true, category: true, message: true, status: true,
         requestedById: true, createdAt: true, forwardedAt: true, resolvedAt: true,
+        event: { select: { id: true, name: true } },
+        requestedBy: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async resolve(id: string, user: AuthUser) {
+    if (user.role === UserRole.ORGANIZER || user.role === UserRole.SUPER_ADMIN) {
+      return this.closeActive(id, user, BarSosStatus.RESOLVED);
+    }
     const sos = await this.prisma.barSos.findUnique({
       where: { id },
       select: { id: true, eventId: true, requestedById: true, assignedManagerId: true },
@@ -222,6 +247,36 @@ export class BarSosService {
       assignedManagerId: user.id, status: BarSosStatus.RESOLVED,
     });
     return { id, status: BarSosStatus.RESOLVED };
+  }
+
+  async cancel(id: string, user: AuthUser) {
+    return this.closeActive(id, user, BarSosStatus.CANCELLED);
+  }
+
+  private async closeActive(id: string, user: AuthUser, status: BarSosStatus) {
+    const sos = await this.prisma.barSos.findUnique({
+      where: { id },
+      select: { eventId: true, requestedById: true },
+    });
+    if (!sos) throw new NotFoundException('SOS not found');
+    if (user.role === UserRole.BAR_STAFF && status === BarSosStatus.CANCELLED) {
+      if (sos.requestedById !== user.id) throw new NotFoundException('SOS not found');
+    } else if (user.role === UserRole.ORGANIZER || user.role === UserRole.SUPER_ADMIN) {
+      await this.requireEventManager(sos.eventId, user);
+    } else {
+      throw new ForbiddenException('Not allowed to close this SOS');
+    }
+    const [closed] = await this.prisma.barSos.updateManyAndReturn({
+      where: {
+        id, eventId: sos.eventId, requestedById: sos.requestedById,
+        status: { in: [BarSosStatus.PENDING, BarSosStatus.FORWARDED] },
+      },
+      data: { status, resolvedById: user.id, resolvedAt: new Date(), activeKey: null },
+      select: { id: true, eventId: true, requestedById: true, assignedManagerId: true, status: true },
+    });
+    if (!closed) throw new ConflictException('SOS is already closed');
+    this.notify({ ...closed, assignedManagerId: closed.assignedManagerId ?? undefined });
+    return { id: closed.id, status: closed.status };
   }
 
   private notify(payload: {

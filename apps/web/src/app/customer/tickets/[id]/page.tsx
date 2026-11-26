@@ -17,6 +17,8 @@ import {
 import {
   ArrowLeft,
   CalendarDays,
+  Check,
+  Copy,
   Loader2,
   MapPin,
   Ticket as TicketIcon,
@@ -53,8 +55,8 @@ import {
 } from "@/lib/auth"
 
 import type {
-  Ticket,
-} from "@/types/ticket"
+  TicketWithInvite as Ticket,
+} from "@/types/ticket-invite"
 
 export default function CustomerTicketPage() {
   const params =
@@ -79,6 +81,11 @@ export default function CustomerTicketPage() {
     error,
     setError,
   ] = useState("")
+
+  const [
+    copied,
+    setCopied,
+  ] = useState(false)
 
   useEffect(() => {
     const token = getToken()
@@ -118,6 +125,21 @@ export default function CustomerTicketPage() {
     params.id,
     router,
   ])
+
+  async function copyInviteLink(link: string) {
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopied(true)
+
+      setTimeout(() => {
+        setCopied(false)
+      }, 2500)
+    } catch {
+      setError(
+        "Não foi possível copiar o link. Seleciona-o e copia-o à mão.",
+      )
+    }
+  }
 
   if (loading) {
     return (
@@ -162,6 +184,17 @@ export default function CustomerTicketPage() {
 
   const event =
     ticket.ticketType.event
+
+  // Link do convite: só existe para quem comprou, enquanto estiver pendente
+  const inviteLink = ticket.invite?.token
+    ? `${window.location.origin}/invite/${ticket.invite.token}`
+    : null
+
+  const whatsappHref = inviteLink
+    ? `https://wa.me/?text=${encodeURIComponent(
+        `Tenho um bilhete para ${event.name} para ti! Aceita-o aqui: ${inviteLink}`,
+      )}`
+    : null
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -260,6 +293,66 @@ export default function CustomerTicketPage() {
               "VALID" && (
               <p className="mt-5 text-center text-sm text-muted-foreground">
                 Apresenta este QR Code no gate de entrada.
+              </p>
+            )}
+
+            {inviteLink && whatsappHref && (
+              <div className="mt-6 space-y-3 rounded-xl border border-dashed p-5">
+                <Badge variant="outline">
+                  Convite pendente
+                </Badge>
+
+                <p className="text-sm text-muted-foreground">
+                  Este bilhete é para quem vai contigo. Envia-lhe o
+                  link: a pessoa cria conta (ou entra) e aceita, e o
+                  bilhete passa para a conta dela. Até lá, o bilhete
+                  continua teu.
+                </p>
+
+                <p className="break-all rounded-md bg-muted px-3 py-2 font-mono text-xs">
+                  {inviteLink}
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      copyInviteLink(inviteLink)
+                    }
+                  >
+                    {copied ? (
+                      <Check className="mr-2 size-4" />
+                    ) : (
+                      <Copy className="mr-2 size-4" />
+                    )}
+
+                    {copied
+                      ? "Link copiado"
+                      : "Copiar link"}
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    render={
+                      <a
+                        href={whatsappHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
+                    }
+                  >
+                    Partilhar no WhatsApp
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {ticket.invite?.status ===
+              "CLAIMED" && (
+              <p className="mt-5 text-center text-xs text-muted-foreground">
+                Bilhete recebido por convite.
               </p>
             )}
 

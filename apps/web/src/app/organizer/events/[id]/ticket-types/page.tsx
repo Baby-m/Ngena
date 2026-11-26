@@ -50,9 +50,19 @@ export default function TicketTypesPage() {
     useState<string | null>(null)
 
   async function refreshTicketTypes() {
+    const token = getToken()
+
+    if (!token) {
+      router.replace("/login")
+      return
+    }
+
     const result =
       await apiRequest<TicketType[]>(
-        `/events/${params.id}/ticket-types`,
+        `/events/${params.id}/ticket-types/manage`,
+        {
+          token,
+        },
       )
 
     setTicketTypes(result)
@@ -76,7 +86,10 @@ export default function TicketTypesPage() {
     }
 
     apiRequest<TicketType[]>(
-      `/events/${params.id}/ticket-types`,
+      `/events/${params.id}/ticket-types/manage`,
+      {
+        token,
+      },
     )
       .then((result) => {
         setTicketTypes(result)

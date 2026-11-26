@@ -4,7 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { UserRole } from '../../../generated/prisma/client.js';
+import {
+  EventStatus,
+  UserRole,
+} from '../../../generated/prisma/client.js';
+
 import { PrismaService } from '../../database/prisma.service.js';
 import { CreateTicketTypeDto } from './dto/create-ticket-type.dto.js';
 import { UpdateTicketTypeDto } from './dto/update-ticket-type.dto.js';
@@ -73,11 +77,53 @@ export class TicketTypesService {
     });
   }
 
-  findByEvent(eventId: string) {
+  async findByEvent(
+    eventId: string,
+  ) {
+    const event =
+      await this.prisma.event.findFirst({
+        where: {
+          id: eventId,
+          status:
+            EventStatus.PUBLISHED,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+    if (!event) {
+      throw new NotFoundException(
+        'Event not found',
+      );
+    }
+
     return this.prisma.ticketType.findMany({
       where: {
         eventId,
       },
+
+      orderBy: {
+        price: 'asc',
+      },
+    });
+  }
+
+  async findByEventForManagement(
+    eventId: string,
+    user: CurrentUser,
+  ) {
+    await this.ensureCanManageEvent(
+      eventId,
+      user,
+    );
+
+    return this.prisma.ticketType.findMany({
+      where: {
+        eventId,
+      },
+
       orderBy: {
         price: 'asc',
       },

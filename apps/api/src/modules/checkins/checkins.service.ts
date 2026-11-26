@@ -6,6 +6,10 @@ import {
 } from '@nestjs/common';
 
 import {
+  RealtimeGateway,
+} from '../realtime/realtime.gateway.js';
+
+import {
   TicketStatus,
   UserRole,
 } from '../../../generated/prisma/client.js';
@@ -23,6 +27,9 @@ export class CheckInsService {
   constructor(
     private readonly prisma:
       PrismaService,
+
+    private readonly realtimeGateway:
+      RealtimeGateway,
   ) {}
 
   findMine(userId: string) {
@@ -162,8 +169,9 @@ export class CheckInsService {
       );
     }
 
-    return this.prisma.$transaction(
-      async (tx) => {
+    const result =
+      await this.prisma.$transaction(
+        async (tx) => {
         /*
          * Este updateMany também funciona como
          * proteção adicional contra duas validações
@@ -210,7 +218,7 @@ export class CheckInsService {
             },
           });
 
-        return {
+                return {
           success: true,
 
           message:
@@ -232,5 +240,26 @@ export class CheckInsService {
         };
       },
     );
+
+    this.realtimeGateway
+      .emitCheckInCreated({
+        eventId:
+          ticket
+            .ticketType
+            .event
+            .id,
+
+        gateId:
+          gate.id,
+
+        checkInId:
+          result.checkIn.id,
+
+        createdAt:
+          result.checkIn
+            .createdAt,
+      });
+
+    return result;
   }
 }

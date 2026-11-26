@@ -48,6 +48,29 @@ export class EventsController {
     return this.eventsService.findOne(id);
   }
 
+  @Get(':id/manage')
+  @UseGuards(
+    JwtAuthGuard,
+    RolesGuard,
+  )
+  @Roles(
+    UserRole.ORGANIZER,
+    UserRole.SUPER_ADMIN,
+  )
+  findOneForManagement(
+    @Param('id')
+    id: string,
+
+    @CurrentUser()
+    user: AuthUser,
+  ) {
+    return this.eventsService
+      .findOneForManagement(
+        id,
+        user,
+      );
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(

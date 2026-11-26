@@ -1,0 +1,407 @@
+{
+  "info": {
+    "name": "Ngena Payments",
+    "description": "Pagamentos simulados (sem reserva) e disponibilidade por area. Preenche as variaveis da colecao (separador Variables) antes de correr.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "apiUrl",
+      "value": "http://localhost:3001"
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "eventId",
+      "value": ""
+    },
+    {
+      "key": "ticketTypeId",
+      "value": ""
+    },
+    {
+      "key": "soldOutTicketTypeId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiUrl}}/api/auth/login",
+              "host": [
+                "{{apiUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Faz login e guarda o accessToken na variavel da colecao.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"login ok\", () => pm.expect([200, 201]).to.include(pm.response.code));",
+                  "pm.collectionVariables.set(\"accessToken\", pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "Availability",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/api/events/{{eventId}}/availability",
+              "host": [
+                "{{apiUrl}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{eventId}}",
+                "availability"
+              ]
+            },
+            "description": "Publico: percentagem vendida e esgotado por area.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"tem areas\", () => pm.expect(pm.response.json().ticketTypes).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Pay - success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiUrl}}/api/payments",
+              "host": [
+                "{{apiUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ]
+            },
+            "description": "Paga e recebe o bilhete na hora. Stock desce 1.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticketTypeId\": \"{{ticketTypeId}}\",\n  \"method\": \"MPESA\",\n  \"phone\": \"841234567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"PAID com bilhete\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.payment.status).to.eql(\"PAID\");",
+                  "  pm.expect(b.ticket).to.not.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pay - failure",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiUrl}}/api/payments",
+              "host": [
+                "{{apiUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ]
+            },
+            "description": "Falha simulada: nao cria encomenda nem bilhete e o stock nao muda.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticketTypeId\": \"{{ticketTypeId}}\",\n  \"method\": \"MPESA\",\n  \"phone\": \"841234567\",\n  \"simulate\": \"failure\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"FAILED sem bilhete\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.payment.status).to.eql(\"FAILED\");",
+                  "  pm.expect(b.ticket).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pay - sold out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiUrl}}/api/payments",
+              "host": [
+                "{{apiUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ]
+            },
+            "description": "Usa um tipo com quantity = 0. Ninguem e cobrado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticketTypeId\": \"{{soldOutTicketTypeId}}\",\n  \"method\": \"MPESA\",\n  \"phone\": \"841234567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 esgotado\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"mensagem\", () => pm.expect(pm.response.json().message).to.include(\"sold out\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/api/payments/mine",
+              "host": [
+                "{{apiUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "mine"
+              ]
+            },
+            "description": "Historico de pagamentos do utilizador."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"lista\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pay - without login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiUrl}}/api/payments",
+              "host": [
+                "{{apiUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ]
+            },
+            "description": "Sem token deve dar 401.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticketTypeId\": \"{{ticketTypeId}}\",\n  \"method\": \"MPESA\",\n  \"phone\": \"841234567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Old route closed (POST /orders)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiUrl}}/api/orders",
+              "host": [
+                "{{apiUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "A rota antiga foi removida (dava bilhetes gratis). Deve dar 404.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticketTypeId\": \"{{ticketTypeId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

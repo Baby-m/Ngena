@@ -30,6 +30,7 @@ import { Label } from "@/components/ui/label"
 
 import { apiRequest } from "@/lib/api"
 import { saveAuth } from "@/lib/auth"
+import { safeNextPath } from "@/lib/redirect"
 import type { LoginResponse } from "@/types/auth"
 
 function LoginForm() {
@@ -38,6 +39,10 @@ function LoginForm() {
 
   const registered =
     searchParams.get("registered") === "true"
+
+  // Destino depois de entrar (por exemplo, voltar a um convite).
+  // Vazio se nao existir ou se nao for um caminho interno seguro.
+  const next = safeNextPath(searchParams.get("next"), "")
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -67,7 +72,7 @@ function LoginForm() {
         response.user,
       )
 
-      router.push("/dashboard")
+      router.push(next || "/dashboard")
     } catch (error) {
       setError(
         error instanceof Error
@@ -171,7 +176,11 @@ function LoginForm() {
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Ainda não tens conta?{" "}
             <Link
-              href="/register"
+              href={
+                next
+                  ? `/register?next=${encodeURIComponent(next)}`
+                  : "/register"
+              }
               className="font-medium text-foreground underline underline-offset-4"
             >
               Criar conta

@@ -38,6 +38,10 @@ import {
 } from "@/components/ui/button"
 
 import {
+  createRealtimeSocket,
+} from "@/lib/realtime"
+
+import {
   Card,
   CardContent,
   CardDescription,
@@ -124,31 +128,129 @@ export default function OrganizerEventDashboardPage() {
       return
     }
 
-    apiRequest<EventDashboardResponse>(
-      `/dashboard/events/${params.id}`,
-      {
+    let active = true
+
+    const loadDashboard =
+      async (
+        showLoading = false,
+      ) => {
+        if (showLoading) {
+          setLoading(true)
+        }
+
+        try {
+          const result =
+            await apiRequest<EventDashboardResponse>(
+              `/dashboard/events/${params.id}`,
+              {
+                token,
+              },
+            )
+
+          if (!active) {
+            return
+          }
+
+          setDashboard(result)
+          setError("")
+        } catch (error) {
+          console.error(
+            "Failed to load event dashboard:",
+            error,
+          )
+
+          if (!active) {
+            return
+          }
+
+          setError(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar os dados do evento",
+          )
+        } finally {
+          if (
+            active &&
+            showLoading
+          ) {
+            setLoading(false)
+          }
+        }
+      }
+
+    void loadDashboard(true)
+
+    const socket =
+      createRealtimeSocket(
         token,
+      )
+
+    socket.on(
+      "connect",
+      () => {
+        socket.emit(
+          "event.join",
+          {
+            eventId:
+              params.id,
+          },
+        )
       },
     )
-      .then((result) => {
-        setDashboard(result)
-        setError("")
-      })
-      .catch((error) => {
-        console.error(
-          "Failed to load event dashboard:",
-          error,
-        )
 
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Não foi possível carregar os dados do evento",
+    socket.on(
+      "event.joined",
+      (payload: {
+        eventId: string
+      }) => {
+        if (
+          payload.eventId !==
+          params.id
+        ) {
+          return
+        }
+
+        console.info(
+          "Realtime event joined:",
+          payload.eventId,
         )
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+      },
+    )
+
+    socket.on(
+      "checkin.created",
+      (payload: {
+        eventId: string
+        gateId: string
+        checkInId: string
+        createdAt: string
+      }) => {
+        if (
+          payload.eventId !==
+          params.id
+        ) {
+          return
+        }
+
+        void loadDashboard()
+      },
+    )
+
+    socket.on(
+      "connect_error",
+      (error) => {
+        console.error(
+          "Realtime connection failed:",
+          error.message,
+        )
+      },
+    )
+
+    return () => {
+      active = false
+
+      socket.disconnect()
+    }
   }, [
     params.id,
     router,

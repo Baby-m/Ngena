@@ -71,22 +71,18 @@ export default function EditEventPage() {
       try {
         const event =
           await apiRequest<Event>(
-            `/events/${params.id}`,
+            `/events/${params.id}/manage`,
+            {
+              token,
+            },
           )
-
-        const isOwner =
-          event.organizerId === user.id
-
-        const isAdmin =
-          user.role === "SUPER_ADMIN"
-
-        if (!isOwner && !isAdmin) {
-          router.replace(
-            `/events/${params.id}`,
-          )
+       if (
+          user.role !== "ORGANIZER" &&
+          user.role !== "SUPER_ADMIN"
+        ) {
+          router.replace("/dashboard")
           return
         }
-
         setName(event.name)
         setDescription(
           event.description ?? "",
@@ -143,9 +139,7 @@ export default function EditEventPage() {
         },
       )
 
-      router.push(
-        `/events/${params.id}`,
-      )
+      router.push("/organizer/events")
     } catch (error) {
       setError(
         error instanceof Error

@@ -4,7 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { UserRole } from '../../../generated/prisma/client.js';
+import {
+  EventStatus,
+  UserRole,
+} from '../../../generated/prisma/client.js';
+
 import { PrismaService } from '../../database/prisma.service.js';
 import { CreateEventDto } from './dto/create-event.dto.js';
 import { UpdateEventDto } from './dto/update-event.dto.js';
@@ -33,8 +37,17 @@ export class EventsService {
     });
   }
 
+  // Listagem pública: apenas eventos publicados ou concluídos.
   findAll() {
     return this.prisma.event.findMany({
+      where: {
+        status: {
+          in: [
+            EventStatus.PUBLISHED,
+            EventStatus.COMPLETED,
+          ],
+        },
+      },
       include: {
         organizer: {
           select: {
@@ -50,20 +63,75 @@ export class EventsService {
   }
 
   async findOne(id: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id },
-      include: {
-        organizer: {
-          select: {
-            id: true,
-            name: true,
+    const event =
+      await this.prisma.event.findFirst({
+        where: {
+          id,
+
+          status: {
+            in: [
+              EventStatus.PUBLISHED,
+              EventStatus.COMPLETED,
+            ],
           },
         },
-      },
-    });
+
+        include: {
+          organizer: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
 
     if (!event) {
-      throw new NotFoundException('Event not found');
+      throw new NotFoundException(
+        'Event not found',
+      );
+    }
+
+    return event;
+  }
+
+  async findOneForManagement(
+    id: string,
+    user: CurrentUser,
+  ) {
+    const event =
+      await this.prisma.event.findUnique({
+        where: {
+          id,
+        },
+
+        include: {
+          organizer: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+    if (!event) {
+      throw new NotFoundException(
+        'Event not found',
+      );
+    }
+
+    const isOwner =
+      event.organizerId === user.id;
+
+    const isAdmin =
+      user.role ===
+      UserRole.SUPER_ADMIN;
+
+    if (!isOwner && !isAdmin) {
+      throw new NotFoundException(
+        'Event not found',
+      );
     }
 
     return event;

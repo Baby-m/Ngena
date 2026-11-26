@@ -73,11 +73,20 @@ export class GatesService {
     });
   }
 
-  findByEvent(eventId: string) {
+  async findByEvent(
+    eventId: string,
+    user: CurrentUser,
+  ) {
+    await this.ensureCanManageEvent(
+      eventId,
+      user,
+    );
+
     return this.prisma.gate.findMany({
       where: {
         eventId,
       },
+
       include: {
         staff: {
           include: {
@@ -92,6 +101,7 @@ export class GatesService {
           },
         },
       },
+
       orderBy: {
         createdAt: 'asc',
       },

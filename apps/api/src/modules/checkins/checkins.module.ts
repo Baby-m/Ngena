@@ -1,10 +1,30 @@
-import { Module } from '@nestjs/common';
+import {
+  Module,
+} from '@nestjs/common';
 
-import { CheckInsController } from './checkins.controller.js';
-import { CheckInsService } from './checkins.service.js';
+import {
+  RealtimeModule,
+} from '../realtime/realtime.module.js';
+
+import {
+  CheckInsController,
+} from './checkins.controller.js';
+
+import {
+  CheckInsService,
+} from './checkins.service.js';
 
 @Module({
-  controllers: [CheckInsController],
-  providers: [CheckInsService],
+  imports: [
+    RealtimeModule,
+  ],
+
+  controllers: [
+    CheckInsController,
+  ],
+
+  providers: [
+    CheckInsService,
+  ],
 })
 export class CheckInsModule {}

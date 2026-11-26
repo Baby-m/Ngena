@@ -43,6 +43,13 @@ const METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "CARD", label: "Cartão" },
 ]
 
+function money(value: number) {
+  return `${value.toLocaleString("pt-MZ", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} MZN`
+}
+
 // A caixa "Simular falha" so aparece se NEXT_PUBLIC_PAYMENTS_MODE=simulated
 const SIMULATED = process.env.NEXT_PUBLIC_PAYMENTS_MODE === "simulated"
 
@@ -57,6 +64,9 @@ export function EventTicketTypes({ eventId, ticketTypes }: Props) {
   const [method, setMethod] = useState<PaymentMethod>("MPESA")
   const [phone, setPhone] = useState("")
   const [simulateFailure, setSimulateFailure] = useState(false)
+
+  // Quantos bilhetes na compra (1 ou 2). O segundo fica com um link de convite.
+  const [quantity, setQuantity] = useState(1)
   const [error, setError] = useState("")
 
   // Perfil de quem esta logado. Le do localStorage, por isso so no browser.
@@ -92,6 +102,7 @@ export function EventTicketTypes({ eventId, ticketTypes }: Props) {
         body: JSON.stringify({
           ticketTypeId,
           method,
+          quantity,
           phone: phoneValue || undefined,
           ...(SIMULATED && simulateFailure ? { simulate: "failure" } : {}),
         }),
@@ -99,6 +110,12 @@ export function EventTicketTypes({ eventId, ticketTypes }: Props) {
 
       if (result.payment.status !== "PAID" || !result.ticket) {
         throw new Error("Pagamento recusado. Tenta outra vez.")
+      }
+
+      // Com 2 bilhetes vai à lista: o segundo tem o link do convite para partilhar
+      if (quantity > 1) {
+        router.push("/customer/tickets")
+        return
       }
 
       router.push(`/customer/tickets/${result.ticket.id}`)
@@ -209,6 +226,43 @@ export function EventTicketTypes({ eventId, ticketTypes }: Props) {
                   {open ? (
                     <div className="mt-6 space-y-4">
                       <div className="space-y-2">
+                        <Label>Quantos bilhetes?</Label>
+
+                        <div className="flex gap-2">
+                          {[1, 2].map((option) => (
+                            <Button
+                              key={option}
+                              type="button"
+                              size="sm"
+                              variant={
+                                quantity === option
+                                  ? "default"
+                                  : "outline"
+                              }
+                              disabled={
+                                paying ||
+                                (option === 2 &&
+                                  ticketType.quantity < 2)
+                              }
+                              onClick={() =>
+                                setQuantity(option)
+                              }
+                            >
+                              {option}
+                            </Button>
+                          ))}
+                        </div>
+
+                        {quantity === 2 && (
+                          <p className="text-xs text-muted-foreground">
+                            O segundo bilhete fica com um link de
+                            convite para partilhares com quem vai
+                            contigo.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
                         <Label htmlFor={`method-${ticketType.id}`}>
                           Método de pagamento
                         </Label>
@@ -267,7 +321,8 @@ export function EventTicketTypes({ eventId, ticketTypes }: Props) {
                           {paying && (
                             <Loader2 className="mr-2 size-4 animate-spin" />
                           )}
-                          Pagar
+                          Pagar{" "}
+                          {money(Number(ticketType.price) * quantity)}
                         </Button>
 
                         <Button
@@ -294,6 +349,7 @@ export function EventTicketTypes({ eventId, ticketTypes }: Props) {
                         }
 
                         setError("")
+                        setQuantity(1)
                         setOpenId(ticketType.id)
                       }}
                     >

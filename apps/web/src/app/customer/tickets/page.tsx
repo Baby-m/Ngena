@@ -11,6 +11,8 @@ import { useRouter } from "next/navigation"
 import {
   ArrowLeft,
   CalendarDays,
+  Check,
+  Copy,
   Loader2,
   MapPin,
   Ticket,
@@ -41,8 +43,8 @@ import {
 } from "@/lib/auth"
 
 import type {
-  Ticket as TicketData,
-} from "@/types/ticket"
+  TicketWithInvite as TicketData,
+} from "@/types/ticket-invite"
 
 export default function CustomerTicketsPage() {
   const router = useRouter()
@@ -61,6 +63,12 @@ export default function CustomerTicketsPage() {
     error,
     setError,
   ] = useState("")
+
+  // id do bilhete cujo link de convite acabou de ser copiado
+  const [
+    copiedId,
+    setCopiedId,
+  ] = useState<string | null>(null)
 
   useEffect(() => {
     const token = getToken()
@@ -97,6 +105,28 @@ export default function CustomerTicketsPage() {
         setLoading(false)
       })
   }, [router])
+
+  async function copyInviteLink(
+    ticketId: string,
+    inviteToken: string,
+  ) {
+    const link = `${window.location.origin}/invite/${inviteToken}`
+
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopiedId(ticketId)
+
+      setTimeout(() => {
+        setCopiedId((current) =>
+          current === ticketId ? null : current,
+        )
+      }, 2500)
+    } catch {
+      setError(
+        "Não foi possível copiar o link. Abre o bilhete e copia-o de lá.",
+      )
+    }
+  }
 
   if (loading) {
     return (
@@ -248,6 +278,42 @@ export default function CustomerTicketsPage() {
                         {ticket.code}
                       </p>
                     </div>
+
+                    {ticket.invite?.token && (
+                      <div className="space-y-2 rounded-lg border border-dashed p-3">
+                        <Badge variant="outline">
+                          Convite pendente
+                        </Badge>
+
+                        <p className="text-xs text-muted-foreground">
+                          Envia o link a quem vai contigo. Quando a
+                          pessoa aceitar, o bilhete passa para a conta
+                          dela.
+                        </p>
+
+                        <Button
+                          className="w-full"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            copyInviteLink(
+                              ticket.id,
+                              ticket.invite!.token!,
+                            )
+                          }
+                        >
+                          {copiedId === ticket.id ? (
+                            <Check className="mr-2 size-4" />
+                          ) : (
+                            <Copy className="mr-2 size-4" />
+                          )}
+
+                          {copiedId === ticket.id
+                            ? "Link copiado"
+                            : "Copiar link do convite"}
+                        </Button>
+                      </div>
+                    )}
 
                     <Button
                       className="w-full"

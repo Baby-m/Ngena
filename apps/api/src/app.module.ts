@@ -1,3 +1,5 @@
+import { EntryRequestsModule } from './modules/entry-requests/entry-requests.module.js';
+
 import {
   Module,
 } from '@nestjs/common';
@@ -59,6 +61,7 @@ import {
     DatabaseModule,
     AuthModule,
     UsersModule,
+    EntryRequestsModule,
     EventsModule,
     TicketTypesModule,
     OrdersModule,

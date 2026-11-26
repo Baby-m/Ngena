@@ -5,6 +5,7 @@ import {
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
   OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
@@ -18,6 +19,7 @@ import type {
 } from 'socket.io';
 
 import {
+  EntryRequestStatus,
   UserRole,
 } from '../../../generated/prisma/client.js';
 
@@ -47,6 +49,21 @@ type CheckInCreatedPayload = {
   createdAt: Date;
 };
 
+type EntryRequestCreatedPayload = {
+  requestId: string;
+  gateId: string;
+  ticketId: string;
+  createdAt: Date;
+};
+
+type EntryRequestResolvedPayload = {
+  requestId: string;
+  gateId: string;
+  customerId: string;
+  status: EntryRequestStatus;
+  resolvedAt: Date;
+};
+
 @WebSocketGateway({
   namespace: '/realtime',
 
@@ -59,7 +76,7 @@ type CheckInCreatedPayload = {
   },
 })
 export class RealtimeGateway
-  implements OnGatewayInit
+  implements OnGatewayInit, OnGatewayConnection
 {
   @WebSocketServer()
   private server!: Namespace;
@@ -141,9 +158,20 @@ export class RealtimeGateway
     );
   }
 
-  @SubscribeMessage(
-    'event.join',
-  )
+  handleConnection(client: Socket) {
+    const user = client.data.user as
+      | RealtimeUser
+      | undefined;
+
+    if (!user) {
+      client.disconnect(true);
+      return;
+    }
+
+    void client.join(this.userRoom(user.id));
+  }
+
+  @SubscribeMessage('event.join')
   async joinEvent(
     @ConnectedSocket()
     client: Socket,
@@ -174,7 +202,9 @@ export class RealtimeGateway
     }
 
     const eventId =
-      data?.eventId?.trim();
+      typeof data?.eventId === 'string'
+        ? data.eventId.trim()
+        : '';
 
     if (!eventId) {
       throw new WsException(
@@ -255,6 +285,75 @@ export class RealtimeGateway
               .toISOString(),
         },
       );
+  }
+
+  private userRoom(userId: string) {
+    return `user:${userId}`;
+  }
+
+  private async notifyGateStaff(
+    gateId: string,
+    eventName: string,
+    payload: object,
+  ) {
+    const assignments = await this.prisma.gateStaff.findMany({
+      where: {
+        gateId,
+        user: {
+          role: {
+            in: [
+              UserRole.GATE_STAFF,
+              UserRole.GATE_MANAGER,
+            ],
+          },
+        },
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    for (const assignment of assignments) {
+      this.server
+        .to(this.userRoom(assignment.userId))
+        .emit(eventName, payload);
+    }
+  }
+
+  async emitEntryRequestCreated(
+    payload: EntryRequestCreatedPayload,
+  ) {
+    await this.notifyGateStaff(
+      payload.gateId,
+      'entry-request.created',
+      {
+        requestId: payload.requestId,
+        gateId: payload.gateId,
+        ticketId: payload.ticketId,
+        createdAt: payload.createdAt.toISOString(),
+      },
+    );
+  }
+
+  async emitEntryRequestResolved(
+    payload: EntryRequestResolvedPayload,
+  ) {
+    const notification = {
+      requestId: payload.requestId,
+      gateId: payload.gateId,
+      status: payload.status,
+      resolvedAt: payload.resolvedAt.toISOString(),
+    };
+
+    this.server
+      .to(this.userRoom(payload.customerId))
+      .emit('entry-request.resolved', notification);
+
+    await this.notifyGateStaff(
+      payload.gateId,
+      'entry-request.resolved',
+      notification,
+    );
   }
 
   private eventRoom(
